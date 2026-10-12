@@ -119,7 +119,25 @@ S.people.forEach((p) => {
     warn.push(`نقش فرمانروایی دارد ولی در kings.js نیست (اگر شاه ایران نبوده نادیده بگیرید): ${p.id}`);
 });
 
-const unused = S.sources.filter((s) => !JSON.stringify([S.people, S.links, S.mysteries, S.dynasties || []]).includes(`"${s.id}"`)).map((s) => s.id);
+// دخالت‌های خارجی (influence.js)
+const IV_KINDS = ['coup', 'install', 'remove', 'occupation', 'puppet', 'transition', 'payroll', 'intel', 'security',
+  'advisers', 'treaty', 'economy', 'arms', 'mediation', 'protect', 'pressure', 'war', 'restraint'];
+const MY = new Set(S.mysteries.map((m) => m.id));
+ids(S.interventions || [], 'interventions');
+(S.interventions || []).forEach((v) => {
+  const w = `دخالت ${v.id}`;
+  if (!IV_KINDS.includes(v.kind)) problems.push(`kind نامعتبر «${v.kind}» در ${w}`);
+  if (!Number.isInteger(v.year)) problems.push(`سال ندارد: ${w}`);
+  yearOk(v.year, w); yearOk(v.end, w);
+  if (!(v.powers || []).length) problems.push(`قدرت ندارد: ${w}`);
+  (v.powers || []).forEach((p) => { if (!PW.has(p)) problems.push(`قدرت ناشناخته «${p}» در ${w}`); });
+  [...(v.placed || []), ...(v.removed || []), ...(v.people || [])].forEach((id) => { if (!P.has(id)) problems.push(`فرد ناشناخته «${id}» در ${w}`); });
+  if (v.mystery && !MY.has(v.mystery)) problems.push(`معمای ناشناخته «${v.mystery}» در ${w}`);
+  tierOk(v.tier, w); srcOk(v.src, w);
+  if ((v.placed || []).length && v.tier > 2) warn.push(`«گماشتن» با سطح ${v.tier} — فقط در معما نتیجه‌گیری شود: ${w}`);
+});
+
+const unused = S.sources.filter((s) => !JSON.stringify([S.people, S.links, S.mysteries, S.dynasties || [], S.interventions || []]).includes(`"${s.id}"`)).map((s) => s.id);
 if (unused.length) warn.push(`منابع بی‌ارجاع: ${unused.join('، ')}`);
 
 console.log(`افراد ${S.people.length} | پیوندها ${S.links.length} | گروه‌ها ${S.groups.length} | معماها ${S.mysteries.length} | منابع ${S.sources.length} (تطبیق‌شده ${S.sources.filter((s) => s.checked).length})`);

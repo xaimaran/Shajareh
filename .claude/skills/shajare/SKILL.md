@@ -81,6 +81,7 @@ data/eras.js          eras with summary, status, agenda
 data/eNN-<era>.js     groups, people, links, mysteries of one era
 data/eNNb-<era>-*.js  supplement for the same era (complete office-holder lists), loaded after eNN
 data/kings.js         ruler lists per dynasty → crown and ordinal in the viewer (loaded after all era files)
+data/influence.js     foreign interventions (SH.intervention), loaded after kings.js
 notes/                Persian research notes: roadmap, library, one log per era
 tools/validate.mjs    read-only check: node tools/validate.mjs
 ```
@@ -107,7 +108,14 @@ SH.group({ id, era, kind: 'dynasty|order|tribe|institution|faction|clergy|foreig
 SH.source({ id, short, title, author, year, kind: 'primary|archive|academic|memoir|press|reference|polemic|video', lang, bias, where?, checked: false });
 SH.mystery({ id, era, title, status: 'open|supported|weakened|debunked|solved', people: [], claim,
              for: [{ t, src: [], tier }], against: [{ t, src: [], tier }], next: [] });
+// data/influence.js — one act of an outside power on Iran (feeds the «نفوذ خارجی» view)
+SH.intervention({ id: 'iv-…', year, end?, powers: ['usa', 'britain'], kind, title, placed: [], removed: [], people: [], tier, note, src: [], mystery? });
+// kind: control  coup | install | remove | occupation | puppet | transition | payroll | intel | security
+//       partner  advisers | treaty | economy | arms | mediation | protect
+//       hostile  pressure | war        limit  restraint (power declined to defend — counter-evidence to «control»)
+// placed/removed only with evidence that this power did it; contact alone goes in people. powers.js `bloc: west|east` groups the camps.
 ```
+Record every outside act with the same tier/src rules, including acts *against* the hypothesis (sanctions votes, refusals, restraint). The view's score counts recorded data only; never add or inflate an event to move it.
 Bridge people (who cross eras) belong to the era where they held power; link across eras freely.
 
 ## Workflow for an era

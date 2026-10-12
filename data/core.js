@@ -2,7 +2,7 @@
    ترتیب بارگذاری در index.html: core.js ← religions.js ← powers.js ← sources.js ← eras.js ← فایل‌های دوره (e01-…, e02-…)
    همه سال‌ها خورشیدی (هجری شمسی) هستند. */
 window.SH = (function () {
-  const store = { religions: [], powers: [], sources: [], eras: [], groups: [], people: [], links: [], mysteries: [], dynasties: [] };
+  const store = { religions: [], powers: [], sources: [], eras: [], groups: [], people: [], links: [], mysteries: [], dynasties: [], interventions: [] };
   const add = (key) => (...items) => { items.forEach((it) => store[key].push(it)); };
   return {
     store,
@@ -15,5 +15,6 @@ window.SH = (function () {
     link: add('links'),
     mystery: add('mysteries'),
     dynasty: add('dynasties'),
+    intervention: add('interventions'),
   };
 })();

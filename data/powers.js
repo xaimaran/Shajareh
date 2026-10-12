@@ -1,12 +1,14 @@
 /* ریشه‌ها و قدرت‌های خارجی. «قدرت» اینجا هر خاستگاه بیرونی است که فرد از آن آمده یا به آن وصل است:
-   دولت‌ها، امپراتوری‌ها، و خاستگاه‌های قومی/مذهبی بیرونی (گرجستان، چرکس، جبل عامل). */
+   دولت‌ها، امپراتوری‌ها، و خاستگاه‌های قومی/مذهبی بیرونی (گرجستان، چرکس، جبل عامل).
+   bloc: اردوگاه در سده اخیر، برای نمای «نفوذ خارجی» — west (بریتانیا، آمریکا و هم‌پیمانان) | east (روسیه/شوروی و چین).
+   این فقط دسته‌بندی قدرت‌هاست، نه داوری درباره افراد؛ وابستگی هر فرد فقط از ties و interventions او خوانده می‌شود. */
 SH.power(
-  { id: 'britain', name: 'بریتانیا', color: '#d0473a' },
-  { id: 'russia', name: 'روسیه / شوروی', color: '#3a6fd0' },
-  { id: 'usa', name: 'آمریکا', color: '#139c9c' },
-  { id: 'france', name: 'فرانسه', color: '#8c58d4' },
-  { id: 'china', name: 'چین', color: '#d99a00' },
-  { id: 'germany', name: 'آلمان', color: '#5f6b7a' },
+  { id: 'britain', name: 'بریتانیا', color: '#d0473a', bloc: 'west' },
+  { id: 'russia', name: 'روسیه / شوروی', color: '#3a6fd0', bloc: 'east' },
+  { id: 'usa', name: 'آمریکا', color: '#139c9c', bloc: 'west' },
+  { id: 'france', name: 'فرانسه', color: '#8c58d4', bloc: 'west' },
+  { id: 'china', name: 'چین', color: '#d99a00', bloc: 'east' },
+  { id: 'germany', name: 'آلمان', color: '#5f6b7a', bloc: 'west' },
   { id: 'ottoman', name: 'عثمانی / ترکیه', color: '#2e9a52' },
   { id: 'venice', name: 'ونیز', color: '#c2185b' },
   { id: 'portugal', name: 'پرتغال', color: '#7c8c22' },
@@ -21,7 +23,7 @@ SH.power(
   { id: 'mamluk', name: 'ممالیک مصر', color: '#9e7c3c' },
   { id: 'uzbek', name: 'ازبکان (شیبانیان)', color: '#5b8a72' },
   { id: 'afghan', name: 'افغانستان (درانیان)', color: '#7a6a3a' },
-  { id: 'israel', name: 'اسرائیل', color: '#2f5fa8' },
+  { id: 'israel', name: 'اسرائیل', color: '#2f5fa8', bloc: 'west' },
   { id: 'iraq', name: 'عراق', color: '#6d4c41' },
   { id: 'lebanon', name: 'لبنان (حزب‌الله و جنبش امل)', color: '#4e7d3a' },
   { id: 'egypt', name: 'مصر', color: '#b38f2a' },

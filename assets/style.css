@@ -515,3 +515,65 @@ ul.ev.against li::marker { color: var(--danger); }
   .stage.full { inset-inline-end: 0; }
   body.has-full .side.detail { position: static; width: auto; }
 }
+
+/* ——— نفوذ خارجی ——— */
+.ivsec { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--shadow); min-width: 0; }
+.ivsec > h3 { font-size: 15px; font-weight: 900; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ivsec > h3 .ic, .ivsec > h3 svg { color: var(--gold); fill: var(--gold); }
+.ivverdict p { margin: 0 0 10px; font-size: 13.5px; }
+.ivbars { display: grid; gap: 4px; }
+.ivbar { display: grid; grid-template-columns: 150px minmax(0, 1fr) 150px; align-items: center; gap: 10px; font-size: 12px; }
+.ivbar.head { color: var(--muted); font-size: 11px; }
+.ivbar .track { display: flex; height: 12px; background: var(--panel-2); border-radius: 6px; overflow: hidden; }
+.ivbar .track i { display: block; height: 100%; }
+.ivbar .track i.p { background: repeating-linear-gradient(45deg, var(--c) 0 3px, transparent 3px 6px); border: 1px solid var(--c); box-sizing: border-box; }
+.ivbar .track i.h { background: color-mix(in srgb, var(--danger) 70%, transparent); }
+.ivbar .nums { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ivbar em { color: var(--danger); font-style: normal; }
+.ivbar u { color: var(--muted); text-decoration: underline dotted; }
+.ivlegend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; margin-bottom: 6px; }
+.ivlegend span { display: inline-flex; align-items: center; gap: 4px; }
+.ivlane-wrap { overflow-x: auto; overflow-y: hidden; direction: rtl; }
+.ivlanes { display: block; font-family: inherit; }
+.ivlanes .iveralbl { font-size: 10px; fill: var(--muted); }
+.ivlanes .ivyr { font-size: 10px; fill: var(--muted); }
+.ivlanes .ivtick { stroke: var(--line); stroke-dasharray: 2 3; }
+.ivlanes .ivrow { stroke: var(--line); }
+.ivlanes .ivplbl { font-size: 12.5px; font-weight: 700; }
+.ivlanes .ivm { cursor: pointer; }
+.ivlanes .ivm:hover { filter: brightness(1.15); }
+.ivlanes .ivc { stroke: var(--panel); stroke-width: 1.5; }
+.ivlanes .ivh { stroke: var(--danger); stroke-width: 2; }
+.ivlanes .ivring { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.ivlanes .ivsel { fill: none; stroke: var(--gold); stroke-width: 3; display: none; }
+.ivlanes .ivm.sel .ivsel { display: block; }
+.ivmatrix { border-collapse: separate; border-spacing: 3px; font-size: 12px; }
+.ivmatrix th { font-weight: 700; color: var(--muted); padding: 2px 6px; white-space: nowrap; text-align: start; }
+.ivmatrix td { min-width: 52px; height: 30px; text-align: center; border-radius: 6px; background: var(--panel-2); font-variant-numeric: tabular-nums; }
+.ivmatrix td b { font-weight: 900; }
+.ivhost { color: var(--danger); font-style: normal; font-size: 10.5px; margin-inline-start: 3px; }
+.ivledger td { vertical-align: middle; }
+.ivledger tr { cursor: default; }
+.ivledger tr.ivput { background: color-mix(in srgb, var(--warn) 9%, transparent); }
+.ivev { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; margin-inline-end: 3px; background: var(--panel); }
+.ivev:hover { border-color: var(--gold); }
+.ivcamps { display: grid; gap: 10px; }
+.ivcamp h5 { font-size: 13px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.ivcamp-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.ivcamp-cols > div { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px; padding: 6px; border-radius: 8px; background: var(--panel-2); }
+.ivbloc { width: 100%; font-size: 11.5px; padding-inline-start: 6px; border-inline-start: 3px solid var(--neutral); }
+.ivbloc.west { border-color: #d0473a; }
+.ivbloc.east { border-color: #3a6fd0; }
+.ivbloc.both { border-color: var(--gold); }
+.ivcamp-p { display: inline-flex; align-items: center; gap: 2px; }
+.ivkind { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 6px; background: var(--panel-2); }
+.ivk-control { color: var(--danger); }
+.ivk-hostile { color: var(--warn); }
+.ivk-partner { color: var(--accent); }
+.ivtag-put { color: var(--ok); font-weight: 700; }
+.ivtag-out { color: var(--danger); font-weight: 700; }
+.row.faded { opacity: .45; }
+@media (max-width: 760px) {
+  .ivbar { grid-template-columns: 110px minmax(0, 1fr); }
+  .ivbar .nums { grid-column: 1 / -1; }
+}

@@ -44,8 +44,27 @@
   const SKIND = { primary: 'دست اول', archive: 'سند / آرشیو', academic: 'پژوهشی', memoir: 'خاطرات', press: 'مطبوعات', reference: 'دانشنامه', polemic: 'جدلی', video: 'ویدیو' };
   const VIEWS = [
     ['overview', 'gantt', 'گانت'], ['hier', 'sitemap', 'سلسله‌مراتب'], ['tree', 'listTree', 'شجره'],
-    ['trail', 'route', 'ردپا'], ['mysteries', 'question', 'معماها'], ['sources', 'books', 'منابع'],
+    ['influence', 'hand', 'نفوذ خارجی'], ['trail', 'route', 'ردپا'], ['mysteries', 'question', 'معماها'], ['sources', 'books', 'منابع'],
   ];
+  /* ——— نفوذ خارجی (data/influence.js) ——— */
+  const IV_CAT = {
+    control: { name: 'مهار', hint: 'کودتا، گماشتن، برکناری، اشغال، دولت دست‌نشانده، شبکه اطلاعاتی، پرداخت پنهان' },
+    partner: { name: 'همکاری', hint: 'پیمان، نفت و اقتصاد، سلاح، مستشار، میانجی‌گری، پشتیبانی دیپلماتیک' },
+    hostile: { name: 'دشمنی', hint: 'تحریم، فشار، جنگ' },
+    limit: { name: 'خودداری', hint: 'قدرت از دفاع یا پشتیبانی خودداری کرد — شاهد مخالف «سلطه»' },
+  };
+  const IV_KIND = {
+    coup: ['کودتا', 'control', 3], install: ['گماشتن', 'control', 3], remove: ['برکناری', 'control', 3], occupation: ['اشغال نظامی', 'control', 3],
+    puppet: ['دولت دست‌نشانده', 'control', 3], transition: ['هدایت انتقال قدرت', 'control', 2], payroll: ['پرداخت پنهان به مقام‌ها', 'control', 2],
+    intel: ['شبکه اطلاعاتی و حزبی', 'control', 2], security: ['ساختن دستگاه امنیتی', 'control', 2],
+    advisers: ['مستشاران', 'partner', 1], treaty: ['پیمان و امتیاز', 'partner', 1], economy: ['نفت و اقتصاد', 'partner', 1], arms: ['سلاح و همکاری نظامی', 'partner', 1],
+    mediation: ['میانجی‌گری', 'partner', 1], protect: ['پشتیبانی دیپلماتیک', 'partner', 1],
+    pressure: ['تحریم و فشار', 'hostile', 1], war: ['جنگ و حمله', 'hostile', 2], restraint: ['خودداری از دفاع', 'limit', 1],
+  };
+  const TIER_W = { 1: 1, 2: 0.75, 3: 0.4, 4: 0.15 };
+  const IV_RANGES = [['century', 'سده اخیر', 1298, null], ['pahlavi', 'پهلوی', 1299, 1357], ['ir', 'جمهوری اسلامی', 1357, null], ['decade', 'ده سال اخیر', null, null]];
+  const HEAD_RE = /^(شاه ایران|نخست‌وزیر|رئیس‌جمهور|رهبر جمهوری اسلامی|نایب‌السلطنه|سرپرست ریاست‌جمهوری|سرپرست نخست‌وزیری)/;
+  const CAMP_KINDS = new Set(['agent', 'client', 'ally', 'refuge', 'trade']);
   const FULLABLE = new Set(['overview', 'hier']);
   const REL_SHORT = { sunni: 'سنی', shia12: 'شیعه', ghulat: 'غالی', zaydi: 'زیدی', ismaili: 'اسماعیلی', orthodox: 'ارتدوکس', armenian: 'ارمنی', catholic: 'کاتولیک', protestant: 'پروتستان', jewish: 'یهودی', zoroastrian: 'زرتشتی', babi: 'بابی', bahai: 'بهائی', secular: 'سکولار', unknown: 'نامعلوم' };
 
@@ -95,6 +114,15 @@
       ...p.ties.map((t) => `${PW[t.power]?.name || t.power} ${t.note || ''}`),
       ...p.groups.map((g) => G[g]?.name || ''), E[p.era]?.name, p.born, p.died].join(' '));
   });
+  const IVS = (S.interventions || []).slice().sort((a, b) => a.year - b.year);
+  const IV = idx(IVS);
+  const IV_OF = Object.create(null);
+  IVS.forEach((v) => {
+    for (const k of ['powers', 'placed', 'removed', 'people', 'src']) v[k] ||= [];
+    v._end = v.end ?? v.year;
+    new Set([...v.placed, ...v.removed, ...v.people]).forEach((id) => { (IV_OF[id] ||= []).push(v); });
+    v._text = norm([v.title, v.note, v.year, ...v.powers.map((w) => PW[w]?.name || w), IV_KIND[v.kind]?.[0], ...[...v.placed, ...v.removed, ...v.people].map((id) => P[id]?.name)].join(' '));
+  });
   S.mysteries.forEach((m) => {
     m.people ||= []; m.for ||= []; m.against ||= []; m.next ||= [];
     m._text = norm([m.title, m.claim, ...m.for.map((x) => x.t), ...m.against.map((x) => x.t), ...m.next, ...m.people.map((id) => P[id]?.name)].join(' '));
@@ -127,12 +155,20 @@
     [...m.for, ...m.against].forEach((x) => chkSrc(x.src, m.id));
   });
 
+  IVS.forEach((v) => {
+    chk(IV_KIND[v.kind], `نوع دخالت ناشناخته «${v.kind}» در ${v.id}`);
+    v.powers.forEach((w) => chk(PW[w], `قدرت ناشناخته «${w}» در ${v.id}`));
+    [...v.placed, ...v.removed, ...v.people].forEach((id) => chk(P[id], `فرد ناشناخته «${id}» در ${v.id}`));
+    chkSrc(v.src, v.id);
+  });
+
   /* ——— ارجاع‌های هر منبع ——— */
   const CITES = Object.create(null);
   const cite = (list, key) => (list || []).forEach((s) => { (CITES[s] ||= new Set()).add(key); });
   S.people.forEach((p) => { const k = `person:${p.id}`; cite(p.src, k); p.ties.forEach((t) => cite(t.src, k)); p.masks.forEach((m) => cite(m.src, k)); });
   S.links.forEach((l) => { cite(l.src, `person:${l.from}`); cite(l.src, `person:${l.to}`); });
   S.mysteries.forEach((m) => { const k = `mystery:${m.id}`; [...m.for, ...m.against].forEach((x) => cite(x.src, k)); });
+  IVS.forEach((v) => cite(v.src, `intervention:${v.id}`));
 
   /* ——— وضعیت ——— */
   const store = {
@@ -141,6 +177,7 @@
   };
   const st = {
     view: 'overview', sel: null, q: '', qn: '', powers: new Set(), rels: new Set(), maxTier: 4, masks: false, violent: false,
+    ivRange: store.get('ivRange', 'century'),
     zoom: store.get('zoom', 5), treeMode: store.get('treeMode', 'power'), mstatus: '', full: false, pk: null,
     types: new Set(Object.keys(LINKS).filter((k) => LINKS[k].descent)),
     open: new Set(store.get('open', ['era:roots', 'era:safavid'])),
@@ -211,7 +248,7 @@
     return s ? `<button class="src${s.checked ? ' ok' : ''}" data-source="${s.id}" title="${esc(s.title)}${s.checked ? '' : ' — تطبیق نشده'}">${esc(s.short || s.title)}</button>` : `<span class="src bad">${esc(id)}</span>`;
   }).join('')}</span>` : '');
   const eraOf = (p) => E[p.era];
-  const selName = (s) => (!s ? 'چکیده کل' : s.kind === 'person' ? P[s.id]?.name : s.kind === 'era' ? E[s.id]?.name : s.kind === 'group' ? G[s.id]?.name : s.kind === 'mystery' ? MY[s.id]?.title : s.kind === 'source' ? SRC[s.id]?.title : '') || '';
+  const selName = (s) => (!s ? 'چکیده کل' : s.kind === 'person' ? P[s.id]?.name : s.kind === 'era' ? E[s.id]?.name : s.kind === 'group' ? G[s.id]?.name : s.kind === 'mystery' ? MY[s.id]?.title : s.kind === 'source' ? SRC[s.id]?.title : s.kind === 'intervention' ? IV[s.id]?.title : '') || '';
 
   function summarize(people) {
     const ids = new Set(people.map((p) => p.id));
@@ -826,6 +863,170 @@
       </tbody></table></div>`;
   }
 
+  /* ——— نفوذ خارجی: ترازو، خط زمان قدرت‌ها، دهه‌ها، دفتر گماشتن، دو اردوگاه ——— */
+  const fmt1 = (x) => fa(String(Math.round(x * 10) / 10).replace('.', '٫'));
+  function ivRangeYears() {
+    const r = IV_RANGES.find((k) => k[0] === st.ivRange) || IV_RANGES[0];
+    return r[0] === 'decade' ? [NOW - 10, NOW] : [r[2], r[3] ?? NOW];
+  }
+  const ivVisible = (v, from, to) => tierOK(v.tier) && v._end >= from && v.year <= to
+    && (!st.powers.size || v.powers.some((w) => st.powers.has(w))) && (!st.qn || v._text.includes(st.qn));
+  function ivScore(list) {
+    const s = Object.create(null);
+    list.forEach((v) => {
+      const [, cat, w] = IV_KIND[v.kind] || ['', 'partner', 1];
+      v.powers.forEach((p) => {
+        if (st.powers.size && !st.powers.has(p)) return;
+        const r = (s[p] ||= { id: p, control: 0, partner: 0, hostile: 0, limit: 0, n: 0 });
+        r[cat] += w * (TIER_W[v.tier ?? 2] || 0.5); r.n++;
+      });
+    });
+    return Object.values(s).sort((a, b) => (b.control + b.partner) - (a.control + a.partner) || b.hostile - a.hostile);
+  }
+  function ivShape(v, cx, cy, c) {
+    const cat = IV_KIND[v.kind]?.[1];
+    const op = { 1: 1, 2: 0.85, 3: 0.55, 4: 0.35 }[v.tier ?? 2];
+    const sel = st.sel && st.sel.kind === 'intervention' && st.sel.id === v.id;
+    const ring = v.placed.length || v.removed.length ? `<circle cx="${cx}" cy="${cy}" r="11" class="ivring"/>` : '';
+    const mark = cat === 'control' ? `<circle cx="${cx}" cy="${cy}" r="7" fill="${c}" class="ivc"/>`
+      : cat === 'partner' ? `<circle cx="${cx}" cy="${cy}" r="6" fill="var(--panel)" stroke="${c}" stroke-width="2.5"/>`
+      : cat === 'hostile' ? `<rect x="${cx - 5.5}" y="${cy - 5.5}" width="11" height="11" transform="rotate(45 ${cx} ${cy})" fill="${c}" class="ivh"/>`
+      : `<circle cx="${cx}" cy="${cy}" r="6" fill="none" stroke="${c}" stroke-width="1.6" stroke-dasharray="2 2"/>`;
+    return `<g class="ivm${sel ? ' sel' : ''}" data-interv="${v.id}" opacity="${op}"><title>${esc(`${fa(v.year)}${v.end ? '–' + fa(v.end) : ''} · ${v.title} · ${IV_KIND[v.kind]?.[0] || v.kind} · ${TIERS[v.tier ?? 2]}`)}</title><circle cx="${cx}" cy="${cy}" r="14" class="ivsel"/>${ring}${mark}</g>`;
+  }
+  function ivLegend() {
+    const sw = (inner) => `<svg viewBox="-12 -12 24 24" width="20" height="20">${inner}</svg>`;
+    return `<div class="ivlegend">
+      <span>${sw('<circle r="7" fill="var(--muted)"/>')}مهار</span>
+      <span>${sw('<circle r="6" fill="var(--panel)" stroke="var(--muted)" stroke-width="2.5"/>')}همکاری</span>
+      <span>${sw('<rect x="-5.5" y="-5.5" width="11" height="11" transform="rotate(45)" fill="var(--muted)" stroke="var(--danger)" stroke-width="2"/>')}دشمنی</span>
+      <span>${sw('<circle r="6" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="2 2"/>')}خودداری</span>
+      <span>${sw('<circle r="10" fill="none" stroke="var(--ink)" stroke-width="1.5"/><circle r="5" fill="var(--muted)"/>')}کسی را گماشت یا برکنار کرد</span>
+      <span class="muted">کم‌رنگی = اعتبار کمتر</span></div>`;
+  }
+  function ivLanes(list, rows, from, to) {
+    if (!rows.length) return '<p class="empty">رخدادی در این بازه و با این فیلترها نیست.</p>';
+    const LW = 150, RH = 38, TOP = 30, span = Math.max(1, to - from);
+    const W = Math.max(620, span * 6);
+    const x = (y) => 14 + W - ((Math.min(Math.max(y, from), to) - from) / span) * W;
+    const H = TOP + rows.length * RH + 10;
+    let g = '';
+    ERAS.filter((e) => (e.end ?? NOW) >= from && e.start <= to).forEach((e) => {
+      const r = x(e.start), l = x(e.end ?? NOW);
+      g += `<rect x="${l}" y="0" width="${Math.max(0, r - l)}" height="${H}" fill="${e.color}" opacity=".07"/><text x="${(l + r) / 2}" y="12" class="iveralbl" text-anchor="middle">${esc(e.short || e.name)}</text>`;
+    });
+    for (let y = Math.ceil(from / 10) * 10; y <= to; y += 10) g += `<line x1="${x(y)}" x2="${x(y)}" y1="18" y2="${H}" class="ivtick"/><text x="${x(y)}" y="27" class="ivyr" text-anchor="middle">${fa(y)}</text>`;
+    rows.forEach((r, i) => {
+      const cy = TOP + i * RH + RH / 2, c = PW[r.id]?.color || '#888';
+      g += `<line x1="10" x2="${W + 18}" y1="${cy}" y2="${cy}" class="ivrow"/><text x="${W + LW + 10}" y="${cy + 4}" text-anchor="start" class="ivplbl" fill="${c}">${esc(PW[r.id]?.name || r.id)}</text>`;
+      const seen = Object.create(null);
+      list.filter((v) => v.powers.includes(r.id)).forEach((v) => {
+        const k = (seen[v.year] = (seen[v.year] ?? -1) + 1);
+        const dy = k ? (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 8 : 0;
+        if (v._end > v.year) g += `<line x1="${x(v._end)}" x2="${x(v.year)}" y1="${cy + dy}" y2="${cy + dy}" stroke="${c}" stroke-width="5" stroke-linecap="round" opacity=".3"/>`;
+        g += ivShape(v, x(v.year), cy + dy, c);
+      });
+    });
+    return `<div class="ivlane-wrap"><svg class="ivlanes" direction="rtl" width="${W + LW + 20}" height="${H}" viewBox="0 0 ${W + LW + 20} ${H}">${g}</svg></div>`;
+  }
+  function ivMatrix(list, rows, from, to) {
+    const d0 = Math.floor(from / 10) * 10, decs = [];
+    for (let d = d0; d <= to; d += 10) decs.push(d);
+    if (decs.length < 3 || !rows.length) return '';
+    const cell = (p, d) => {
+      const s = ivScore(list.filter((v) => v.powers.includes(p) && v._end >= d && v.year <= d + 9)).find((r) => r.id === p);
+      if (!s) return '<td></td>';
+      const inf = s.control + s.partner, a = Math.min(85, Math.round(inf * 14));
+      return `<td style="background:color-mix(in srgb, ${PW[p]?.color || '#888'} ${a}%, transparent)" title="${esc(PW[p]?.name)} · دهه ${fa(d)} · مهار ${fmt1(s.control)} · همکاری ${fmt1(s.partner)} · دشمنی ${fmt1(s.hostile)}">${inf ? `<b>${fmt1(inf)}</b>` : ''}${s.hostile ? `<i class="ivhost">−${fmt1(s.hostile)}</i>` : ''}</td>`;
+    };
+    return `<div class="table-wrap"><table class="ivmatrix"><thead><tr><th>قدرت</th>${decs.map((d) => `<th>${fa(d)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((r) => `<tr><th>${powerChip(r.id)}</th>${decs.map((d) => cell(r.id, d)).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  function ivLedger(list, from, to) {
+    const heads = S.people.map((p) => ({ p, r: p.roles.find((r) => HEAD_RE.test(r.t) && Number.isFinite(r.from) && (r.to ?? NOW) >= from && r.from <= to) }))
+      .filter((x) => x.r).sort((a, b) => a.r.from - b.r.from);
+    if (!heads.length) return '';
+    const evs = (id, key) => list.filter((v) => v[key].includes(id)).map((v) => `<button class="ivev" data-interv="${v.id}">${v.powers.map((w) => `<i class="dot sm" style="background:${PW[w]?.color}"></i>`).join('')}${esc(v.powers.map((w) => PW[w]?.name || w).join(' و '))} · ${fa(v.year)}</button>${tierBadge(v.tier)}`).join(' ');
+    let none = 0;
+    const rows = heads.map(({ p, r }) => {
+      const put = evs(p.id, 'placed'), out = evs(p.id, 'removed');
+      const ties = p.ties.filter((t) => CAMP_KINDS.has(t.kind) && tierOK(t.tier) && PW[t.power]?.bloc && (!st.powers.size || st.powers.has(t.power)));
+      if (!put) none++;
+      return `<tr class="${put ? 'ivput' : ''}"><td class="yr">${fa(r.from)}${r.to ? '–' + fa(r.to) : ''}</td><td>${personBtn(p.id)}</td><td class="sm">${esc(r.t)}</td>
+        <td>${put || '<span class="muted sm">سند گماشتن خارجی ثبت نشده</span>'}</td><td>${out || ''}</td>
+        <td>${ties.map((t) => `${powerChip(t.power)}<span class="sm muted">${TIE_KINDS[t.kind]}</span>${tierBadge(t.tier)}`).join(' ')}</td></tr>`;
+    }).join('');
+    return `<p class="muted sm">${fa(heads.length)} شاه، نایب‌السلطنه، نخست‌وزیر، رئیس‌جمهور و رهبر در این بازه؛ برای ${fa(heads.length - none)} نفر رخداد گماشتن به دست قدرت خارجی ثبت است، با سطح اعتبار کنارش. «پیوند شخصی» یعنی کارگزاری، دست‌نشاندگی، اتحاد، پناهندگی یا داد و ستد مستند خود فرد (تحصیل شمرده نمی‌شود).</p>
+      <div class="table-wrap"><table class="stable ivledger"><thead><tr><th>سال</th><th>نام</th><th>مقام</th><th>به قدرت رسید با دست</th><th>برکنار شد با دست</th><th>پیوند شخصی با اردوگاه‌ها</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  function ivCamps(from, to) {
+    const eras = ERAS.filter((e) => (e.end ?? NOW) >= from && e.start <= to && e.start >= 1284);
+    const cols = eras.map((e) => {
+      const buckets = { west: [], east: [], both: [] };
+      S.people.filter((p) => p.era === e.id).forEach((p) => {
+        const ts = p.ties.filter((t) => CAMP_KINDS.has(t.kind) && tierOK(t.tier) && PW[t.power]?.bloc && (!st.powers.size || st.powers.has(t.power)));
+        const bl = new Set(ts.map((t) => PW[t.power].bloc));
+        if (!bl.size) return;
+        const best = Math.min(...ts.map((t) => t.tier ?? 2));
+        const item = `<span class="ivcamp-p">${personBtn(p.id)}${tierBadge(best)}</span>`;
+        buckets[bl.size > 1 ? 'both' : [...bl][0]].push(item);
+      });
+      const n = buckets.west.length + buckets.east.length + buckets.both.length;
+      return `<div class="ivcamp"><h5><span class="dot" style="background:${e.color}"></span>${esc(e.name)} <span class="muted sm">(${fa(n)})</span></h5>
+        <div class="ivcamp-cols"><div><b class="ivbloc west">غرب: بریتانیا، آمریکا، آلمان، فرانسه، اسرائیل</b>${buckets.west.join('') || '<span class="muted sm">—</span>'}</div>
+        <div><b class="ivbloc east">شرق: روسیه/شوروی، چین</b>${buckets.east.join('') || '<span class="muted sm">—</span>'}</div>
+        ${buckets.both.length ? `<div><b class="ivbloc both">هر دو</b>${buckets.both.join('')}</div>` : ''}</div></div>`;
+    });
+    return cols.join('');
+  }
+  function renderInfluence() {
+    const [from, to] = ivRangeYears();
+    const list = IVS.filter((v) => ivVisible(v, from, to));
+    const rows = ivScore(list);
+    const top = rows.filter((r) => r.control + r.partner > 0);
+    const hostile = rows.filter((r) => r.hostile > 0).sort((a, b) => b.hostile - a.hostile);
+    const placedHard = list.filter((v) => v.placed.length && (v.tier ?? 2) <= 2);
+    const lastPlaced = placedHard[placedHard.length - 1];
+    const max = Math.max(1, ...rows.map((r) => r.control + r.partner + r.hostile));
+    const bar = (r) => `<div class="ivbar"><span class="pn">${powerChip(r.id)}</span>
+      <span class="track"><i class="c" style="width:${(r.control / max) * 100}%;background:${PW[r.id]?.color}"></i><i class="p" style="width:${(r.partner / max) * 100}%;--c:${PW[r.id]?.color}"></i><i class="h" style="width:${(r.hostile / max) * 100}%"></i></span>
+      <span class="nums" title="مهار · همکاری · دشمنی · خودداری"><b>${fmt1(r.control)}</b> · ${fmt1(r.partner)} · <em>${fmt1(r.hostile)}</em>${r.limit ? ` · <u>${fmt1(r.limit)}</u>` : ''}</span></div>`;
+    const myIds = new Set(['m-dominant-power', 'm-east-roots', 'm-two-camps', ...list.map((v) => v.mystery).filter(Boolean)]);
+    const myst = S.mysteries.filter((m) => myIds.has(m.id));
+    $('#stage').innerHTML = `
+      <div class="toolbar"><h2>${ic('hand')} نفوذ خارجی</h2>
+        ${IV_RANGES.map(([k, label]) => `<button class="tbtn${st.ivRange === k ? ' on' : ''}" data-act="iv-range" data-range="${k}">${label}</button>`).join('')}
+        <span class="hint">${fa(from)}–${fa(to)} ش · ${fa(list.length)} رخداد</span></div>
+      ${helpBox('هر نشانه یک کنش ثبت‌شده یک قدرت خارجی بر ایران است، با منبع و سطح اعتبار. «مهار» یعنی قدرت مستقیم کسی را بالا برد، برکنار کرد، کشور را اشغال کرد یا شبکه پنهان داشت؛ «همکاری» پیمان، نفت، سلاح و میانجی‌گری است؛ «دشمنی» تحریم و جنگ؛ «خودداری» جایی است که قدرت از دفاع سر باز زد. امتیاز هر قدرت = وزن نوع کنش (مهار ۲ تا ۳، دیگران ۱) × وزن اعتبار (مستند ۱، معتبر ۰٫۷۵، ادعا ۰٫۴، شایعه ۰٫۱۵). این امتیاز فقط آنچه را تاکنون ثبت شده می‌شمارد و حکم نهایی نیست؛ فیلتر اعتبار و قدرت در سربرگ اینجا هم کار می‌کند. روی هر نشانه کلیک کنید تا جزئیات و منبع در ستون کناری بیاید.')}
+      <section class="ivsec"><h3>${ic('chart')} ترازوی نفوذ در این بازه</h3>
+        <div class="ivverdict">
+          <p>${top.length ? `بیشترین مهار و همکاری ثبت‌شده: <b>${top.slice(0, 2).map((r) => esc(PW[r.id]?.name)).join('، سپس ')}</b>.` : 'هیچ مهار یا همکاری ثبت نشده.'}
+          ${hostile.length ? ` بیشترین دشمنی: <b>${esc(PW[hostile[0].id]?.name)}</b>.` : ''}
+          ${lastPlaced ? ` آخرین گماشتن مستند یا معتبر به دست قدرت خارجی: <button class="lnk" data-interv="${lastPlaced.id}">${esc(lastPlaced.title)} (${fa(lastPlaced.year)})</button>${lastPlaced.year < 1357 && to > 1357 ? '؛ پس از ۱۳۵۷ هیچ گماشتنی در سطح مستند یا معتبر ثبت نشده است' : ''}.` : ' در این بازه هیچ گماشتنی در سطح مستند یا معتبر ثبت نشده است.'}</p>
+        </div>
+        <div class="ivbars"><div class="ivbar head"><span>قدرت</span><span>${ic('hand')} مهار ▮ همکاری ▯ دشمنی</span><span>مهار · همکاری · <em>دشمنی</em> · <u>خودداری</u></span></div>${rows.map(bar).join('') || '<p class="empty">—</p>'}</div>
+      </section>
+      <section class="ivsec"><h3>${ic('gantt')} خط زمان دخالت‌ها، به تفکیک قدرت</h3>${ivLegend()}${ivLanes(list, rows, from, to)}</section>
+      ${to - from >= 30 ? `<section class="ivsec"><h3>${ic('hourglass')} دهه به دهه</h3><p class="muted sm">عدد = امتیاز مهار و همکاری در آن دهه؛ <i class="ivhost">−n</i> = دشمنی. رنگ پررنگ‌تر یعنی نفوذ بیشتر.</p>${ivMatrix(list, rows, from, to)}</section>` : ''}
+      <section class="ivsec"><h3>${crownSvg()} دفتر گماشتن: چه کسی، با دست چه کسی؟</h3>${ivLedger(list, from, to)}</section>
+      <section class="ivsec"><h3>${ic('users')} دو اردوگاه: پیوندهای شخصی ثبت‌شده با غرب و شرق</h3>
+        <p class="muted sm">فقط پیوند خود فرد شمرده می‌شود (کارگزاری، دست‌نشاندگی، اتحاد، پناهندگی، داد و ستد) و نه تحصیل یا دشمنی. پیمان دولت با دولت پیوند شخصی نیست. نبودن نام کسی یعنی سندی برای او ثبت نشده، نه اینکه بی‌طرف بوده.</p>
+        <div class="ivcamps">${ivCamps(from, to)}</div></section>
+      <section class="ivsec"><h3>${ic('question')} معماهای این بخش</h3><div class="mlist">${myst.map((m) => mysteryCard(m, false)).join('')}</div></section>`;
+  }
+  function interventionDetail(v) {
+    const [kname, cat] = IV_KIND[v.kind] || [v.kind, ''];
+    const plist = (ids, label) => (ids.length ? `<h4>${label}</h4><div class="d-list">${ids.map((id) => `<div class="row">${personBtn(id)}</div>`).join('')}</div>` : '');
+    return `<div class="d-head"><span class="kind">${ic('hand')} دخالت خارجی</span>${closeBtn()}</div>
+      <h2 class="d-title">${esc(v.title)}</h2>
+      <div class="meta"><span>${fa(v.year)}${v.end ? '–' + fa(v.end) : ''} ش</span>${v.powers.map(powerChip).join('')}</div>
+      <p><span class="ivkind ivk-${cat}">${esc(IV_CAT[cat]?.name || '')}: ${esc(kname)}</span> ${tierBadge(v.tier)}</p>
+      ${v.note ? `<p class="summary">${esc(v.note)}</p>` : ''}
+      ${plist(v.placed, 'به قدرت رسیدند')}${plist(v.removed, 'برکنار شدند')}${plist(v.people, 'دیگر افراد درگیر')}
+      ${v.mystery && MY[v.mystery] ? `<h4>${ic('question')} معمای مرتبط</h4><div class="d-list"><button class="row" data-mystery="${v.mystery}">${esc(MY[v.mystery].title)}<span class="ms ms-${MY[v.mystery].status}">${MSTATUS[MY[v.mystery].status]}</span></button></div>` : ''}
+      <h4>${ic('books')} منابع</h4>${srcList(v.src)}`;
+  }
+
   /* ——— ستون جزئیات با تاریخچه بازگشت ——— */
   function renderDetailNav() {
     const b = hist.back[hist.back.length - 1], f = hist.fwd[hist.fwd.length - 1];
@@ -842,6 +1043,7 @@
     else if (sel.kind === 'group' && G[sel.id]) d.innerHTML = groupDetail(G[sel.id]);
     else if (sel.kind === 'mystery' && MY[sel.id]) d.innerHTML = `<div class="d-head"><span class="kind">${ic('question')} معما</span><button class="ibtn" data-act="unselect" title="بستن">${ic('xmark')}</button></div>${mysteryCard(MY[sel.id], true)}`;
     else if (sel.kind === 'source' && SRC[sel.id]) d.innerHTML = sourceDetail(SRC[sel.id]);
+    else if (sel.kind === 'intervention' && IV[sel.id]) d.innerHTML = interventionDetail(IV[sel.id]);
     else d.innerHTML = globalDetail();
     renderDetailNav();
   }
@@ -884,6 +1086,7 @@
       ${p.masks.length ? `<h4>${ic('masks')} تغییر نقاب</h4><ol class="masks">${p.masks.map((m) => `<li class="${tierOK(m.tier) ? '' : 'faded'}"><div class="mfrom">${esc(m.from)}</div><div class="marrow">${m.year ? fa(m.year) + ' ' : ''}⟵</div><div class="mto">${esc(m.to)}</div>${m.note ? `<p class="muted sm">${esc(m.note)}</p>` : ''}<div class="mmeta">${tierBadge(m.tier)}${srcList(m.src)}</div></li>`).join('')}</ol>` : ''}
       ${p.roles.length ? `<h4>${ic('badge')} نقش‌ها</h4><ul class="plain roles">${p.roles.map((r) => `<li>${esc(r.t)}${r.from || r.to ? ` <span class="yr">${r.from ? fa(r.from) : '؟'}–${r.to ? fa(r.to) : '؟'}</span>` : ''}</li>`).join('')}</ul>` : ''}
       ${p.ties.length ? `<h4>${ic('globe')} ریشه‌ها و پیوندهای بیرونی</h4><ul class="plain ties">${p.ties.map((t) => `<li class="${tierOK(t.tier) ? '' : 'faded'}">${powerChip(t.power)}<span class="tkind${t.kind === 'enemy' ? ' enemy' : ''}">${TIE_KINDS[t.kind] || t.kind}</span>${tierBadge(t.tier)}${t.note ? `<div class="sm">${esc(t.note)}</div>` : ''}${srcList(t.src)}</li>`).join('')}</ul>` : ''}
+      ${(IV_OF[p.id] || []).length ? `<h4>${ic('hand')} دخالت‌های خارجی مرتبط</h4><div class="d-list">${IV_OF[p.id].map((v) => `<button class="row${tierOK(v.tier) ? '' : ' faded'}" data-interv="${v.id}">${v.powers.map((w) => `<i class="dot sm" style="background:${PW[w]?.color}"></i>`).join('')}<span>${fa(v.year)} · ${esc(v.title)}</span><span class="sm ${v.placed.includes(p.id) ? 'ivtag-put' : v.removed.includes(p.id) ? 'ivtag-out' : 'muted'}">${v.placed.includes(p.id) ? 'به قدرت رسید' : v.removed.includes(p.id) ? 'برکنار شد' : 'درگیر'}</span>${tierBadge(v.tier)}</button>`).join('')}</div>` : ''}
       ${rel.length ? `<h4>${ic('link')} پیوندها با دیگران</h4>${Object.keys(LINKS).filter((k) => byType[k]).map((k) => `<div class="relgroup"><div class="reltype lk-${k}"><i></i>${LINKS[k].name}</div><ul class="plain">${byType[k].map((x) => `<li><span class="rl">${esc(x.label)}:</span> ${personBtn(x.other)} ${P[x.other] ? relChip(P[x.other]) : ''} ${tierBadge(x.l.tier)}${x.l.note ? `<span class="sm muted"> — ${esc(x.l.note)}</span>` : ''}${srcList(x.l.src)}</li>`).join('')}</ul></div>`).join('')}` : ''}
       ${myst.length ? `<h4>${ic('question')} معماهای مرتبط</h4><div class="d-list">${myst.map((m) => `<button class="row" data-mystery="${m.id}">${esc(m.title)}<span class="ms ms-${m.status}">${MSTATUS[m.status]}</span></button>`).join('')}</div>` : ''}
       ${p.tags.length ? `<div class="tags">${p.tags.map((t) => `<button class="tag" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>` : ''}
@@ -921,7 +1124,9 @@
       <p class="summary"><b>سوگیری:</b> ${esc(s.bias || '—')}</p>
       <p>${s.checked ? '<span class="ok-tag">با متن تطبیق داده شده</span>' : '<span class="no-tag">هنوز با متن تطبیق داده نشده</span>'}</p>
       <h4>ارجاع‌ها (${fa(refs.length)})</h4>
-      <div class="d-list">${refs.map(([k, id]) => (k === 'person' ? `<button class="row" data-person="${id}">${P[id] ? avatar(P[id], 'xs') : ''}${esc(P[id]?.name || id)}</button>` : `<button class="row" data-mystery="${id}">معما: ${esc(MY[id]?.title || id)}</button>`)).join('')}</div>`;
+      <div class="d-list">${refs.map(([k, id]) => (k === 'person' ? `<button class="row" data-person="${id}">${P[id] ? avatar(P[id], 'xs') : ''}${esc(P[id]?.name || id)}</button>`
+        : k === 'intervention' ? `<button class="row" data-interv="${id}">دخالت خارجی: ${esc(IV[id]?.title || id)}</button>`
+        : `<button class="row" data-mystery="${id}">معما: ${esc(MY[id]?.title || id)}</button>`)).join('')}</div>`;
   }
 
   /* ——— پانویس ——— */
@@ -1000,7 +1205,7 @@
     const full = st.full && FULLABLE.has(st.view);
     $('#stage').classList.toggle('full', full);
     document.body.classList.toggle('has-full', full);
-    ({ overview: renderOverview, hier: renderHier, tree: renderTree, trail: renderTrail, mysteries: renderMysteries, sources: renderSources })[st.view]();
+    ({ overview: renderOverview, hier: renderHier, tree: renderTree, trail: renderTrail, mysteries: renderMysteries, sources: renderSources, influence: renderInfluence })[st.view]();
   }
   function renderAll() { applyPanels(); renderPickers(); renderNav(); renderStage(); renderDetail(); renderFoot(); }
   function syncHash() {
@@ -1111,7 +1316,7 @@
     const zt = ev.target.closest('[data-zoom]');
     if (zt) openPortrait(zt.dataset.zoom);
     if (st.pk && !ev.target.closest('.picker')) { st.pk = null; renderPickers(); }
-    const t = ev.target.closest('[data-act],[data-view],[data-fold],[data-hfold],[data-hdeep],[data-tdeep],[data-power],[data-rel],[data-type],[data-mstatus],[data-tag],[data-person],[data-era],[data-group],[data-mystery],[data-source]');
+    const t = ev.target.closest('[data-act],[data-view],[data-fold],[data-hfold],[data-hdeep],[data-tdeep],[data-power],[data-rel],[data-type],[data-mstatus],[data-tag],[data-person],[data-era],[data-group],[data-mystery],[data-source],[data-interv]');
     if (!t) return;
     const d = t.dataset;
     if (t.closest('summary') && t.tagName !== 'SUMMARY' && (d.act || d.person || d.tdeep)) ev.preventDefault();
@@ -1132,6 +1337,7 @@
       else if (a === 'h-secondary') { st.hSecondary = !st.hSecondary; store.set('hSecondary', st.hSecondary); renderStage(); }
       else if (a === 'h-from-sel') { if (st.sel && st.sel.kind === 'person') { st.hRoot = st.sel.id; chartView = null; setView('hier'); } }
       else if (a === 'tree-mode-power' || a === 'tree-mode-line') { st.treeMode = a === 'tree-mode-line' ? 'line' : 'power'; store.set('treeMode', st.treeMode); renderStage(); if (st.sel && st.sel.kind === 'person') treeReveal(st.sel.id); }
+      else if (a === 'iv-range') { st.ivRange = d.range; store.set('ivRange', st.ivRange); renderStage(); }
       else if (a === 'tree-expand') setAllTreeDetails(true);
       else if (a === 'tree-collapse') setAllTreeDetails(false);
       else if (a === 'masks') { st.masks = !st.masks; refilter(); }
@@ -1191,6 +1397,10 @@
     if (d.group) return select('group', d.group, { fromChart });
     if (d.mystery) return select('mystery', d.mystery);
     if (d.source) return select('source', d.source);
+    if (d.interv) {
+      select('intervention', d.interv);
+      if (st.view === 'influence') document.querySelectorAll('.ivm').forEach((g) => g.classList.toggle('sel', g.dataset.interv === d.interv));
+    }
   });
   document.addEventListener('toggle', (ev) => {
     const el = ev.target;
