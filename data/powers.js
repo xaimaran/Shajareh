@@ -31,5 +31,6 @@ SH.power(
   { id: 'argentina', name: 'آرژانتین', color: '#6fa8dc' },
   { id: 'saudi', name: 'عربستان سعودی', color: '#3f8f5f' },
   { id: 'qatar', name: 'قطر', color: '#8a1538' },
-  { id: 'uae', name: 'امارات متحده عربی', color: '#b5893b' }
+  { id: 'uae', name: 'امارات متحده عربی', color: '#b5893b' },
+  { id: 'pakistan', name: 'پاکستان', color: '#01611f' }
 );
