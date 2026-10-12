@@ -137,7 +137,42 @@ ids(S.interventions || [], 'interventions');
   if ((v.placed || []).length && v.tier > 2) warn.push(`«گماشتن» با سطح ${v.tier} — فقط در معما نتیجه‌گیری شود: ${w}`);
 });
 
-const unused = S.sources.filter((s) => !JSON.stringify([S.people, S.links, S.mysteries, S.dynasties || [], S.interventions || []]).includes(`"${s.id}"`)).map((s) => s.id);
+// رشته‌های بلند (threads.js): هر گام یا به رکورد موجود ارجاع می‌دهد یا tier و src خودش را دارد
+const TH_KINDS = ['foundation', 'network', 'foreign', 'pattern'];
+const TH_VERDICT = ['continuous', 'shifted', 'broken', 'contested'];
+const IVM = new Set((S.interventions || []).map((v) => v.id));
+const resolveRef = (ref) => {
+  const [kind, rest = ''] = ref.split(/:(.*)/s);
+  if (kind === 'link') {
+    const m = rest.match(/^([^>]+)>([^:]+):(\w+)$/);
+    return !!m && S.links.some((l) => l.from === m[1] && l.to === m[2] && l.type === m[3]);
+  }
+  if (kind === 'iv') return IVM.has(rest);
+  if (kind === 'my') return MY.has(rest);
+  if (kind === 'mask') { const [pid, i] = rest.split(':'); return !!P.get(pid)?.masks?.[+i]; }
+  if (kind === 'tie') { const [pid, pw] = rest.split(':'); return (P.get(pid)?.ties || []).some((t) => t.power === pw); }
+  return false;
+};
+ids(S.threads || [], 'threads');
+(S.threads || []).forEach((th) => {
+  const w = `رشته ${th.id}`;
+  if (!TH_KINDS.includes(th.kind)) problems.push(`kind نامعتبر «${th.kind}» در ${w}`);
+  if (!TH_VERDICT.includes(th.verdict?.kind)) problems.push(`verdict نامعتبر در ${w}`);
+  if (th.power && !PW.has(th.power)) problems.push(`قدرت ناشناخته «${th.power}» در ${w}`);
+  if (!(th.steps || []).length) problems.push(`گام ندارد: ${w}`);
+  (th.steps || []).forEach((s, i) => {
+    const sw = `${w} / گام ${i} (${s.y})`;
+    if (!Number.isInteger(s.y)) problems.push(`سال ندارد: ${sw}`);
+    yearOk(s.y, sw);
+    (s.p || []).forEach((id) => { if (!P.has(id)) problems.push(`فرد ناشناخته «${id}» در ${sw}`); });
+    if (s.ref && !resolveRef(s.ref)) problems.push(`ارجاع شکسته «${s.ref}» در ${sw}`);
+    if (!s.ref || s.ref.startsWith('my:')) { if (s.tier != null || !s.ref) tierOk(s.tier ?? (s.ref ? 3 : null), sw); }
+    if (!s.ref) srcOk(s.src, sw); else srcOk(s.src, sw, false);
+    if (!s.ref && !s.t) problems.push(`متن ندارد: ${sw}`);
+  });
+});
+
+const unused = S.sources.filter((s) => !JSON.stringify([S.people, S.links, S.mysteries, S.dynasties || [], S.interventions || [], S.threads || []]).includes(`"${s.id}"`)).map((s) => s.id);
 if (unused.length) warn.push(`منابع بی‌ارجاع: ${unused.join('، ')}`);
 
 console.log(`افراد ${S.people.length} | پیوندها ${S.links.length} | گروه‌ها ${S.groups.length} | معماها ${S.mysteries.length} | منابع ${S.sources.length} (تطبیق‌شده ${S.sources.filter((s) => s.checked).length})`);
