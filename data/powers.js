@@ -28,5 +28,8 @@ SH.power(
   { id: 'lebanon', name: 'لبنان (حزب‌الله و جنبش امل)', color: '#4e7d3a' },
   { id: 'egypt', name: 'مصر', color: '#b38f2a' },
   { id: 'switzerland', name: 'سوئیس', color: '#c94b4b' },
-  { id: 'argentina', name: 'آرژانتین', color: '#6fa8dc' }
+  { id: 'argentina', name: 'آرژانتین', color: '#6fa8dc' },
+  { id: 'saudi', name: 'عربستان سعودی', color: '#3f8f5f' },
+  { id: 'qatar', name: 'قطر', color: '#8a1538' },
+  { id: 'uae', name: 'امارات متحده عربی', color: '#b5893b' }
 );
