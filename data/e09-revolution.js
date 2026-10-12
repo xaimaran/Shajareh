@@ -61,7 +61,7 @@ SH.person(
   { id: 'rafsanjani', name: 'اکبر هاشمی رفسنجانی', era: 'revolution', groups: ['rev-leadership'], born: 1313, died: 1395, death: 'unknown',
     deathNote: 'در دی ۱۳۹۵ در استخر درگذشت؛ خانواده‌اش درباره علت مرگ تردید کردند.',
     rel: ['shia12'], faith: 'روحانی شیعه',
-    roles: [{ t: 'رئیس مجلس', from: 1359, to: 1368 }, { t: 'رئیس‌جمهور', from: 1368, to: 1376 }, { t: 'رئیس مجمع تشخیص مصلحت', from: 1368, to: 1395 }],
+    roles: [{ t: 'رئیس مجلس', from: 1359, to: 1368 }, { t: 'رئیس‌جمهور', from: 1368, to: 1376 }, { t: 'رئیس مجمع تشخیص مصلحت', from: 1368, to: 1395 }, { t: 'رئیس مجلس خبرگان', from: 1386, to: 1390 }],
     ties: [{ power: 'usa', kind: 'ally', tier: 1, note: 'میزبان پنهان هیئت مک‌فارلین (خرداد ۱۳۶۵) در ماجرای ایران-کنترا', src: ['tower-report'] }],
     summary: 'شاگرد خمینی و یکی از دو معمار رهبری خامنه‌ای در ۱۳۶۸؛ خاندانش از نخستین خاندان‌های ثروتمند جمهوری اسلامی شد.', src: ['tower-report', 'moin-khomeini'] },
   { id: 'shariatmadari', name: 'آیت‌الله سید کاظم شریعتمداری', era: 'revolution', groups: ['rev-rivals'], born: 1284, died: 1365, death: 'natural',

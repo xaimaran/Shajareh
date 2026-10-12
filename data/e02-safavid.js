@@ -39,7 +39,7 @@ SH.person(
       { power: 'ottoman', kind: 'enemy', tier: 1, note: 'شکست چالدران ۸۹۳', src: ['savory'] },
     ],
     summary: 'در چهارده‌سالگی با مریدان قزلباش تبریز را گرفت (۸۸۰) و تشیع را مذهب رسمی کرد. شکست چالدران (۸۹۳) هاله شکست‌ناپذیری‌اش را شکست. با پرتغال و ونیز کاتولیک برای اتحاد ضدعثمانی مکاتبه داشت.',
-    tags: ['نقاب', 'تبار-خارجی'], src: ['savory', 'minorsky-ismail', 'habib'] },
+    tags: ['نقاب', 'تبار-خارجی'], src: ['savory', 'minorsky-ismail', 'habib', 'ahsan'] },
   { id: 'tahmasp-i', name: 'شاه تهماسب یکم', era: 'safavid', groups: ['safavid-dynasty'], born: 892, died: 955, death: 'natural',
     rel: ['shia12'], faith: 'شیعه دوازده‌امامی؛ سخت‌گیر مذهبی',
     roles: [{ t: 'شاه ایران', from: 903, to: 955 }],
