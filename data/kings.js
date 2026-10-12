@@ -1,0 +1,56 @@
+/* فهرست فرمانروایان هر سلسله‌ای که بر ایران یا بخشی از آن فرمان رانده است، به ترتیب جلوس.
+   شماره (n) شماره تاریخی فرمانروا در سلسله است و نمایشگر کنار نام او تاج و «×n» می‌گذارد (نخستین فرمانروا: تاج تنها).
+   اگر n داده نشود، یکی بیشتر از فرمانروای پیشین است. claim: true یعنی مدعی، شاه اسمی یا نایب‌السلطنه همه‌کاره؛ با تاج کم‌رنگ و بی‌شماره.
+   فرمانروایان دست‌نشانده بیرون از ایران (گرجستان، شروان، گورکانیان هند، عثمانی، درانی) اینجا نمی‌آیند.
+   هر شاه یا مدعی که به داده افزوده می‌شود باید اینجا هم ثبت شود؛ فهرست کامل از روی باسورث و فهرست‌های فرمانروایان (wiki-lists). */
+SH.dynasty(
+  { id: 'timurid', name: 'تیموریان', src: ['bosworth'],
+    note: 'شمارش بر پایه فرمانروایان اصلی پس از تیمور؛ پس از ابوسعید شاخه هرات (خراسان) دنبال شده است.',
+    kings: ['timur', 'khalil-sultan-timurid', 'shahrukh-timurid', 'ulugh-beg', 'abd-al-latif-timurid', 'abdallah-timurid', 'abu-said-timurid',
+      'husayn-bayqara', 'badi-al-zaman'] },
+  { id: 'qara-qoyunlu', name: 'قراقویونلو', src: ['bosworth'],
+    kings: ['bayram-khwaja', 'qara-muhammad-qq', 'qara-yusuf', 'qara-iskandar', 'jahan-shah', 'hasan-ali-qq', { id: 'pirbudaq', claim: true }] },
+  { id: 'aq-qoyunlu', name: 'آق‌قویونلو', src: ['bosworth', 'woods'],
+    note: 'پس از احمد بیگ قلمرو میان الوند، محمدی و مراد تقسیم شد؛ هر سه شماره گرفته‌اند. قاسم بیگ در دیاربکر امیرنشینی جدا داشت.',
+    kings: ['qara-osman', 'ali-beg-aq', 'hamza-beg-aq', 'jahangir-aq', 'uzun-hasan', 'sultan-khalil-aq', 'yaqub-beg', 'baysonghur-aq', 'rustam-beg', 'ahmad-beg-aq',
+      'alvand', 'muhammadi-aq', 'murad-beg', { id: 'qasim-aq', claim: true }] },
+  { id: 'uzbek', name: 'شیبانیان (ازبک)', src: ['bosworth'],
+    note: 'فقط فرمانروایانی که بر خراسان دست یافتند.',
+    kings: ['shaybani-khan'] },
+  { id: 'safavid', name: 'صفویه', src: ['bosworth', 'wiki-lists'],
+    note: 'شاه اسمی‌های پس از ۱۱۱۴ (سلیمان دوم و اسماعیل سوم) و مدعیان، مدعی شمرده شده‌اند.',
+    kings: ['ismail-i', 'tahmasp-i', 'ismail-ii', 'khodabanda', 'abbas-i', 'safi-i', 'abbas-ii', 'suleiman', 'sultan-husayn', 'tahmasp-ii', 'abbas-iii',
+      { id: 'safi-mirza-pretender', claim: true }, { id: 'sayyed-ahmad-khan', claim: true }, { id: 'suleiman-ii', claim: true }, { id: 'ismail-iii', claim: true }] },
+  { id: 'hotak', name: 'هوتکیان', src: ['bosworth', 'wiki-lists'],
+    note: 'میرویس و عبدالعزیز فقط بر قندهار فرمان راندند؛ محمود و اشرف در اصفهان شاه شدند.',
+    kings: ['mirwais', 'abdul-aziz-hotak', 'mahmud-hotak', 'ashraf-hotak', 'hussain-hotak'] },
+  { id: 'afshar', name: 'افشاریه', src: ['bosworth', 'wiki-lists'],
+    kings: ['nader', 'adel-shah', 'ebrahim-shah-afshar', 'shahrokh'] },
+  { id: 'zand', name: 'زندیه', src: ['bosworth', 'wiki-lists', 'perry-karim'],
+    note: 'کریم‌خان خود را شاه نخواند و «وکیل» ماند. زکی‌خان بی‌آنکه بر تخت بنشیند همه‌کاره بود.',
+    kings: ['karim-khan', 'mohammad-ali-zand', 'abolfath-zand', { id: 'zaki-khan', claim: true }, 'sadeq-khan-zand', 'ali-morad-zand', 'jafar-khan-zand', 'sayed-morad-zand', 'lotf-ali-khan'] },
+  { id: 'claimants-1101', name: 'مدعیان پس از سقوط اصفهان', src: ['bosworth'],
+    kings: [{ id: 'malik-mahmud-sistani', claim: true }, { id: 'azad-khan-afghan', claim: true }, { id: 'mohammad-hasan-qajar', claim: true }] },
+  { id: 'qajar', name: 'قاجاریه', src: ['bosworth', 'wiki-lists'],
+    note: 'نایب‌السلطنه‌های احمدشاه (عضدالملک و ناصرالملک) با تاج کم‌رنگ آمده‌اند.',
+    kings: ['agha-mohammad-khan', { id: 'sadeq-khan-shaqaqi', claim: true }, 'fath-ali-shah', { id: 'hossein-qoli-brother', claim: true },
+      { id: 'ali-mirza-zell', claim: true }, { id: 'hasan-ali-farmanfarma', claim: true }, 'mohammad-shah', 'naser-al-din-shah', 'mozaffar-al-din-shah',
+      'mohammad-ali-shah', 'ahmad-shah', { id: 'azod-al-molk', claim: true }, { id: 'naser-ol-molk', claim: true }, { id: 'salar-al-dowleh', claim: true }] },
+  { id: 'pahlavi', name: 'پهلوی', src: ['abrahamian-between'],
+    kings: ['reza-khan', 'mohammad-reza-shah'] },
+  { id: 'velayat', name: 'رهبران جمهوری اسلامی (ولی فقیه)', src: ['abrahamian-history', 'wiki-2026'],
+    note: 'شاه نیستند، ولی فرمانروای مادام‌العمر کشورند و از ۱۴۰۴ جانشینی از پدر به پسر رسیده است؛ برای همین با تاج شمرده شده‌اند. اعضای شورای موقت رهبری (اسفند ۱۴۰۴) با تاج کم‌رنگ.',
+    kings: ['khomeini', 'ali-khamenei', { id: 'alireza-arafi', claim: true }, 'mojtaba-khamenei'] },
+
+  /* فرمانروایان بیرون از ایران یا دست‌نشانده: foreign: true — تاج خاکستری؛ شماره فقط وقتی n صریح داده شده باشد. */
+  { id: 'ottoman', name: 'سلاطین عثمانی', foreign: true, src: ['bosworth'],
+    kings: [{ id: 'mehmed-ii', n: 7 }, { id: 'selim-i', n: 9 }] },
+  { id: 'mughal', name: 'گورکانیان هند', foreign: true, src: ['bosworth'],
+    kings: [{ id: 'humayun', n: 2 }, { id: 'muhammad-shah-mughal', n: 13 }] },
+  { id: 'durrani', name: 'درانیان (افغانستان)', foreign: true, src: ['bosworth'],
+    kings: [{ id: 'ahmad-shah-durrani', n: 1 }] },
+  { id: 'georgia', name: 'شاهان گرجی کارتلی و کاختی (دست‌نشانده صفوی و افشار)', foreign: true, src: ['bosworth'],
+    kings: ['luarsab-ii', 'rostom-khan', 'gorgin-khan', 'vakhtang-vi', 'erekle-ii'] },
+  { id: 'shirvan', name: 'شروانشاهان', foreign: true, src: ['bosworth'],
+    kings: ['khalilullah-shirvan', 'farrukh-yasar'] }
+);

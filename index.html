@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>شجره‌نامه قدرت در ایران</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 29V15M16 15l-7-6M16 15l7-6M16 21l-5-4M16 21l5-4M9 9l-3-4M9 9l1-5M23 9l3-4M23 9l-1-5" /><circle cx="16" cy="29" r="1.6"/></svg>
+      <div>
+        <h1>شجره‌نامه قدرت</h1>
+        <p>ایران، از آق‌قویونلو تا امروز · سال‌ها خورشیدی</p>
+      </div>
+    </div>
+    <label class="search" data-ic="search">
+      <input id="q" type="search" placeholder="جست‌وجو در نام، نقش، تبار، دین، نقاب… ( / )" autocomplete="off">
+    </label>
+    <div class="pickers" id="pickers"></div>
+    <nav class="views" id="views"></nav>
+    <button class="ibtn round" data-act="theme" data-ic="theme" title="تغییر پوسته"></button>
+  </header>
+
+  <main class="layout" id="layout">
+    <aside class="panel side nav" id="nav">
+      <div class="panel-head">
+        <button class="ibtn" data-act="toggle-nav" data-ic="sidebarFlip" title="جمع / باز کردن ستون"></button>
+        <span class="ptitle">دوره‌ها و گروه‌ها</span>
+        <span class="pactions">
+          <button class="ibtn" data-act="nav-expand" data-ic="anglesDown" title="باز کردن همه دوره‌ها و گروه‌ها"></button>
+          <button class="ibtn" data-act="nav-collapse" data-ic="anglesUp" title="بستن همه"></button>
+        </span>
+      </div>
+      <div class="panel-body" id="nav-tree"></div>
+    </aside>
+    <div class="splitter" data-split="nav" title="برای تغییر اندازه بکشید؛ دوبار کلیک برای اندازه پیش‌فرض"></div>
+    <section class="panel stage" id="stage"></section>
+    <div class="splitter" data-split="detail" title="برای تغییر اندازه بکشید؛ دوبار کلیک برای اندازه پیش‌فرض"></div>
+    <aside class="panel side detail" id="detail-panel">
+      <div class="panel-head">
+        <button class="ibtn" data-act="toggle-detail" data-ic="sidebar" title="جمع / باز کردن ستون"></button>
+        <span class="ptitle">جزئیات</span>
+        <span class="pactions" id="detail-nav"></span>
+      </div>
+      <div class="panel-body" id="detail"></div>
+    </aside>
+  </main>
+
+  <footer class="foot" id="foot"></footer>
+
+  <script src="assets/icons.js"></script>
+  <script src="assets/portraits/list.js"></script>
+  <script src="data/core.js"></script>
+  <script src="data/religions.js"></script>
+  <script src="data/powers.js"></script>
+  <script src="data/sources.js"></script>
+  <script src="data/eras.js"></script>
+  <script src="data/e01-roots.js"></script>
+  <script src="data/e01b-roots-rulers.js"></script>
+  <script src="data/e02-safavid.js"></script>
+  <script src="data/e02b-safavid-court.js"></script>
+  <script src="data/e03-afshar.js"></script>
+  <script src="data/e04-zand.js"></script>
+  <script src="data/e05-qajar.js"></script>
+  <script src="data/e05b-qajar-networks.js"></script>
+  <script src="data/e06-mashruteh.js"></script>
+  <script src="data/e07-pahlavi1.js"></script>
+  <script src="data/e08-pahlavi2.js"></script>
+  <script src="data/e09-revolution.js"></script>
+  <script src="data/e10-ir-today.js"></script>
+  <script src="data/e10b-ir-today-economy.js"></script>
+  <!-- فایل دوره‌های بعدی اینجا، پیش از kings.js اضافه شود -->
+  <script src="data/kings.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
