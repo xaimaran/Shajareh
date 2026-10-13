@@ -34,5 +34,6 @@ SH.power(
   { id: 'uae', name: 'امارات متحده عربی', color: '#b5893b' },
   { id: 'pakistan', name: 'پاکستان', color: '#01611f' },
   { id: 'libya', name: 'لیبی', color: '#4a7a2a' },
-  { id: 'lebanon-state', name: 'دولت لبنان', color: '#7d5a8c' }
+  { id: 'lebanon-state', name: 'دولت لبنان', color: '#7d5a8c' },
+  { id: 'oman', name: 'عمان', color: '#a6192e' }
 );
