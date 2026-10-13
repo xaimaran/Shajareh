@@ -83,6 +83,7 @@ data/eNNb-<era>-*.js  supplement for the same era (complete office-holder lists)
 data/kings.js         ruler lists per dynasty → crown and ordinal in the viewer (loaded after all era files)
 data/influence.js     foreign interventions (SH.intervention), loaded after kings.js
 data/threads.js       long threads across regimes (SH.thread), loaded after influence.js
+data/prisons.js       prisons (SH.prison) and every spell in custody, exile or house arrest (SH.jail), loaded last
 notes/                Persian research notes: roadmap, library, influence, threads, one log per era
 tools/validate.mjs    read-only check: node tools/validate.mjs
 ```
@@ -123,6 +124,16 @@ SH.thread({ id: 'th-…', kind: 'foundation|network|foreign|pattern', power?, na
 // a step without ref needs its own tier and src. Give kind 'foreign' threads their power (colour and power filter).
 ```
 Record every outside act with the same tier/src rules, including acts *against* the hypothesis (sanctions votes, refusals, restraint). The view's score counts recorded data only; never add or inflate an event to move it.
+```js
+// data/prisons.js — who was held, where, by whom, with whom, and how it ended (feeds the «زندان» view)
+SH.prison({ id, name, city?, note? });   // a named place, so cellmates (same place, overlapping years) can be computed
+SH.jail({ who, from, to?, when?, at?, place?, kind, by, out, with?: [], confess?, mystery?, note, tier, src: [] });
+// kind: prison | fortress | house | exile | internment (held by a foreign power) | hostage | captive
+// by:   jailer = a group id (Iranian state of that era) or a power id (foreign jailer)
+// out:  released | pardon | repent | amnesty | escape | exchange | deal | power | transfer | executed | killed | died | ongoing | unknown
+// to missing = end unknown (unless out = ongoing); from missing = undated, then `when` is required. with = documented cellmates.
+```
+Record every spell in custody for every person, with tier and src like a tie. Prison is where cohorts form, interrogations happen and people are turned, so the view flags special releases (pardon, repentance, escape, deal, straight to power), public confessions, foreign custody, deaths in custody and prisoners who later ran security or courts. These are signals for research, never a verdict: a spying claim goes into a mystery with evidence on both sides. Never invent a cellmate; overlap is computed only from a recorded place and years.
 Threads add no new facts: put the fact in its era file first, then reference it. The «who was behind» matrix weighs Iranians' ties (agent/client 3 = control, ally/trade 1, refuge 0.5), foreign agents' own ties as presence only (1, never control), and control/partner interventions, all × tier weight. Threads judge historical claims (coercion, forged lineage, institutional continuity), never the truth of a faith.
 Bridge people (who cross eras) belong to the era where they held power; link across eras freely.
 

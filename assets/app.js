@@ -44,7 +44,7 @@
   const SKIND = { primary: 'دست اول', archive: 'سند / آرشیو', academic: 'پژوهشی', memoir: 'خاطرات', press: 'مطبوعات', reference: 'دانشنامه', polemic: 'جدلی', video: 'ویدیو' };
   const VIEWS = [
     ['overview', 'gantt', 'گانت'], ['hier', 'sitemap', 'سلسله‌مراتب'], ['tree', 'listTree', 'شجره'],
-    ['influence', 'hand', 'نفوذ خارجی'], ['threads', 'diagram', 'رشته‌ها'], ['trail', 'route', 'ردپا'], ['mysteries', 'question', 'معماها'], ['sources', 'books', 'منابع'],
+    ['influence', 'hand', 'نفوذ خارجی'], ['threads', 'diagram', 'رشته‌ها'], ['prisons', 'bars', 'زندان'], ['trail', 'route', 'ردپا'], ['mysteries', 'question', 'معماها'], ['sources', 'books', 'منابع'],
   ];
   /* ——— نفوذ خارجی (data/influence.js) ——— */
   const IV_CAT = {
@@ -178,6 +178,7 @@
   const st = {
     view: 'overview', sel: null, q: '', qn: '', powers: new Set(), rels: new Set(), maxTier: 4, masks: false, violent: false,
     ivRange: store.get('ivRange', 'century'), ivZoom: store.get('ivZoom', 1), thZoom: store.get('thZoom', 1), thKind: '', thStep: undefined,
+    jRange: store.get('jRange', 'modern'), jZoom: store.get('jZoom', 1), jSig: '',
     zoom: store.get('zoom', 5), treeMode: store.get('treeMode', 'power'), mstatus: '', full: false, pk: null,
     types: new Set(Object.keys(LINKS).filter((k) => LINKS[k].descent)),
     open: new Set(store.get('open', ['era:roots', 'era:safavid'])),
@@ -1291,6 +1292,240 @@
       <p class="muted sm"><button class="lnk" data-view="threads">${ic('gantt')} دیدن همه رشته‌ها روی خط زمان</button></p>`;
   }
 
+  /* ——— زندان، تبعید و حصر (data/prisons.js): چه کسی، کجا، به دست چه کسی، با چه کسانی ———
+     هم‌بندی = یک جای ثبت‌شده و سال‌های هم‌پوشان، یا هم‌بند مستند (with). نشانه‌ها فرضیه‌اند برای سنجش، نه حکم. */
+  const PRISON = idx(S.prisons || []);
+  const JAILS = (S.jails || []).slice();
+  const J_KIND = { prison: 'زندان', fortress: 'قلعه', house: 'حصر خانگی', exile: 'تبعید', internment: 'بازداشت بیگانه', hostage: 'گروگان', captive: 'اسارت' };
+  // [نام، گونه]: n عادی | s نشانه‌ای که باید سنجیده شود | d مرگ در بند
+  const J_OUT = {
+    released: ['آزاد شد', 'n'], pardon: ['عفو', 's'], repent: ['آزادی با توبه‌نامه', 's'], amnesty: ['آزادی همگانی یا با سقوط زندان‌بان', 'n'],
+    escape: ['فرار', 's'], exchange: ['تحویل یا مبادله', 's'], deal: ['آزادی برای خدمت به آزادکننده', 's'], power: ['از بند یک‌راست به قدرت', 's'],
+    transfer: ['سپرده به زندان‌بان بعدی', 'n'], executed: ['اعدام', 'd'], killed: ['کشته در بند', 'd'], died: ['مرگ در بند', 'd'],
+    ongoing: ['هنوز در بند', 'n'], unknown: ['پایان نامعلوم', 'n'],
+  };
+  const J_RANGES = [['modern', 'سده اخیر', 1299, null], ['qajar', 'قاجار و مشروطه', 1168, 1304], ['early', 'آق‌قویونلو تا زند', 840, 1180], ['all', 'همه', 840, null]];
+  const J_SIG = { out: 'آزادی خاص', confess: 'اعتراف علنی', foreign: 'بند بیگانه', sec: 'از بند به امنیت یا قضا', silenced: 'مرگ در بند' };
+  const J_OF = Object.create(null);
+  JAILS.forEach((j) => {
+    j.with ||= []; j.src ||= [];
+    j._dated = Number.isFinite(j.from);
+    j._end = j.to ?? (j.out === 'ongoing' ? NOW : j.from);
+    j._openEnd = j.to == null && j.out !== 'ongoing';
+    j._foreign = !G[j.by] && !!PW[j.by];
+    (J_OF[j.who] ||= []).push(j);
+    chk(P[j.who], `فرد ناشناخته «${j.who}» در زندان‌ها`);
+    chk(G[j.by] || PW[j.by], `زندان‌بان ناشناخته «${j.by}» برای ${j.who}`);
+    if (j.at) chk(PRISON[j.at], `جای حبس ناشناخته «${j.at}» برای ${j.who}`);
+    chkSrc(j.src, `زندان ${j.who}`);
+    cite(j.src, `person:${j.who}`);
+  });
+  const jByYear = (a, b) => (a.from ?? 9999) - (b.from ?? 9999) || (a._end ?? 0) - (b._end ?? 0);
+  JAILS.sort(jByYear);
+  Object.values(J_OF).forEach((l) => l.sort(jByYear));
+  const jPlace = (j) => (j.at ? PRISON[j.at]?.name || j.at : j.place || 'جای نامعلوم');
+  const jJailer = (j) => G[j.by]?.name || PW[j.by]?.name || j.by;
+  const jColor = (j) => (j._foreign ? PW[j.by]?.color : E[G[j.by]?.era]?.color) || '#888';
+  const jYears = (j) => (!j._dated ? (j.when || 'بی‌تاریخ') : `${fa(j.from)}${j.out === 'ongoing' ? '–اکنون' : j.to == null ? '–؟' : j.to !== j.from ? '–' + fa(j.to) : ''}`);
+  const jOut = (j) => J_OUT[j.out] || [j.out, 'n'];
+  const jailerChip = (j) => (j._foreign ? powerChip(j.by) : `<button class="gchip jchip" data-group="${esc(j.by)}" style="--c:${jColor(j)}">${esc(jJailer(j))}</button>`);
+  const overlaps = (a, b) => a._dated && b._dated && a.from <= b._end && b.from <= a._end;
+  S.people.forEach((p) => { if (J_OF[p.id]) p._text += norm(J_OF[p.id].map((j) => `زندان ${J_KIND[j.kind]} ${jPlace(j)} ${jJailer(j)}`).join(' ')); });
+
+  // هم‌بندان یک حبس: هم‌بند مستند، یا همان جای ثبت‌شده در سال‌های هم‌پوشان
+  function jMates(j) {
+    const s = new Set(j.with);
+    JAILS.forEach((k) => {
+      if (k.who === j.who) return;
+      if (j.at && k.at === j.at && overlaps(j, k)) s.add(k.who);
+      if (k.with.includes(j.who) && (k._dated && j._dated ? overlaps(j, k) : !!j.at && j.at === k.at)) s.add(k.who);
+    });
+    s.delete(j.who);
+    return [...s].filter((id) => P[id]);
+  }
+  // خوشه‌های زمانی: حبس‌هایی که زنجیروار هم‌پوشانی دارند؛ فقط خوشه‌های دست‌کم دو نفره
+  function jClusters(list) {
+    const out = [];
+    let cur = null;
+    list.filter((j) => j._dated).sort(jByYear).forEach((j) => {
+      if (cur && j.from <= cur.to) { cur.items.push(j); cur.to = Math.max(cur.to, j._end); }
+      else { cur = { from: j.from, to: j._end, items: [j] }; out.push(cur); }
+    });
+    return out.map((c) => ({ ...c, people: [...new Set(c.items.map((j) => j.who))] })).filter((c) => c.people.length > 1);
+  }
+  const eraIdx = (id) => ERAS.findIndex((e) => e.id === id);
+  const laterRole = (pid, after) => (P[pid]?.roles || []).filter((r) => Number.isFinite(r.from) && r.from > after && !/(گروگان|تبعید)/.test(r.t)).sort((a, b) => a.from - b.from)[0];
+  const SEC_RE = /(ساواک|اطلاعات|امنیت|سپاه|دادستان|قضاییه|دادگاه|حاکم شرع|شهربانی|نظمیه|انتظامی|بسیج)/;
+
+  function jSignals() {
+    const rows = [];
+    JAILS.forEach((j) => {
+      const [oname, otype] = jOut(j);
+      if (otype === 's') rows.push({ j, k: 'out', t: oname });
+      if (j.confess) rows.push({ j, k: 'confess', t: 'اعتراف یا توبه علنی در بند' });
+      if (j._foreign) rows.push({ j, k: 'foreign', t: `در بند ${PW[j.by]?.name || j.by}` });
+      // مرگ در بند از دوره مشروطه به بعد، که دادگاه و قانون جزا معیار داوری است
+      if ((j.out === 'killed' || j.out === 'died') && j._dated && j.from >= 1285) rows.push({ j, k: 'silenced', t: `${oname}، پیش از آزادی یا بی‌دادرسی مستقل` });
+    });
+    Object.entries(J_OF).forEach(([pid, l]) => {
+      const first = l.find((j) => j._dated);
+      const r = first && (P[pid]?.roles || []).filter((x) => Number.isFinite(x.from) && x.from > first.from && SEC_RE.test(x.t)).sort((a, b) => a.from - b.from)[0];
+      if (r) rows.push({ j: first, k: 'sec', t: `بعدها: ${r.t} (${fa(r.from)})` });
+    });
+    return rows.filter((r) => tierOK(r.j.tier)).sort((a, b) => jByYear(b.j, a.j));
+  }
+
+  function jMark(A, j, cy) {
+    const c = jColor(j), [oname, otype] = jOut(j);
+    const xr = A.x(Math.max(j.from, A.from)), xl = A.x(Math.min(j._end + 1, A.to));
+    const w = Math.max(10, xr - xl), x = xr - w;
+    const soft = j.kind === 'exile' || j.kind === 'house';
+    const op = { 1: 1, 2: 0.92, 3: 0.6, 4: 0.4 }[j.tier ?? 2];
+    const dash = j._openEnd || (j.tier ?? 2) > 2 ? ' stroke-dasharray="4 3"' : '';
+    let end = '';
+    if (otype === 'd') end = `<path d="M${x - 5} ${cy - 5}L${x + 5} ${cy + 5}M${x + 5} ${cy - 5}L${x - 5} ${cy + 5}" class="jx"/>`;
+    else if (otype === 's') end = `<rect x="${x - 4.5}" y="${cy - 4.5}" width="9" height="9" transform="rotate(45 ${x} ${cy})" class="jsig"/>`;
+    else if (j.out === 'ongoing') end = `<path d="M${x - 8} ${cy}L${x} ${cy - 6}L${x} ${cy + 6}z" fill="${c}"/>`;
+    const conf = j.confess ? `<circle cx="${x + w / 2}" cy="${cy - 12}" r="4" class="jconf"/>` : '';
+    const mates = jMates(j).map((id) => P[id]?.name);
+    const tip = tipAttr([P[j.who]?.name || j.who, `${jYears(j)} ش · ${J_KIND[j.kind] || j.kind} · ${jPlace(j)}`, `زندان‌بان: ${jJailer(j)}${j._foreign ? ' (قدرت بیرونی)' : ''}`,
+      `پایان: ${oname}${j.confess ? ' · اعتراف علنی' : ''}`, mates.length ? `هم‌بند: ${mates.join('، ')}` : '',
+      j.note ? (j.note.length > 170 ? j.note.slice(0, 170) + '…' : j.note) : '', `اعتبار: ${TIERS[j.tier ?? 2]}`]);
+    return `<g class="ivm jm" data-person="${j.who}" opacity="${op}" ${tip}><rect x="${x - 4}" y="${cy - 13}" width="${w + 8}" height="26" class="ivhit"/>`
+      + `<rect x="${x}" y="${cy - 7}" width="${w}" height="14" rx="4" fill="${c}" fill-opacity="${soft ? 0.25 : 0.88}" stroke="${j._foreign ? 'var(--ink)' : c}" stroke-width="${j._foreign ? 2.4 : 1.5}"${dash}/>${end}${conf}</g>`;
+  }
+  function jailLanes(list, from, to) {
+    const byP = new Map();
+    list.forEach((j) => { if (!byP.has(j.who)) byP.set(j.who, []); byP.get(j.who).push(j); });
+    const rows = [...byP.entries()];
+    if (!rows.length) return '<p class="empty">در این بازه و با این فیلترها حبسی ثبت نشده است.</p>';
+    const A = swimAxis(from, to, st.jZoom, 180);
+    const RH = 32, TOP = 48, H = TOP + rows.length * RH + 8;
+    let g = swimFrame(A, H, TOP);
+    rows.forEach(([, js], i) => {
+      const cy = TOP + i * RH + RH / 2;
+      g += `<line x1="0" x2="${A.W}" y1="${TOP + (i + 1) * RH}" y2="${TOP + (i + 1) * RH}" class="ivrow"/>`;
+      js.forEach((j) => { g += jMark(A, j, cy); });
+    });
+    return swimHTML(A, rows.map(([pid]) => ({ label: personBtn(pid) })), H, g, TOP, RH, 'j-zoom');
+  }
+  function jLegend(list) {
+    const sw = (inner) => `<svg viewBox="-15 -15 30 30" width="24" height="24">${inner}</svg>`;
+    const eras = ERAS.filter((e) => list.some((j) => !j._foreign && G[j.by]?.era === e.id));
+    const fps = [...new Set(list.filter((j) => j._foreign).map((j) => j.by))];
+    return `<div class="ivlegend"><span class="muted">رنگ = زندان‌بان:</span>${eras.map((e) => `<span><i class="dot" style="background:${e.color}"></i>${esc(e.short || e.name)}</span>`).join('')}
+      ${fps.map((w) => `<span><i class="dot" style="background:${PW[w]?.color};box-shadow:0 0 0 2px var(--ink)"></i>${esc(PW[w]?.name)}</span>`).join('')}</div>
+      <div class="ivlegend">
+      <span>${sw('<rect x="-13" y="-6" width="26" height="12" rx="4" fill="var(--muted)" fill-opacity=".88"/>')}زندان، قلعه، اسارت</span>
+      <span>${sw('<rect x="-13" y="-6" width="26" height="12" rx="4" fill="var(--muted)" fill-opacity=".25" stroke="var(--muted)" stroke-width="1.5"/>')}تبعید یا حصر</span>
+      <span>${sw('<rect x="-13" y="-6" width="26" height="12" rx="4" fill="var(--muted)" fill-opacity=".88" stroke="var(--ink)" stroke-width="2.4"/>')}در بند قدرت بیرونی</span>
+      <span>${sw('<rect x="-13" y="-6" width="26" height="12" rx="4" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/>')}پایان نامعلوم یا ادعا</span>
+      <span>${sw('<path d="M-6 -6L6 6M6 -6L-6 6" class="jx"/>')}اعدام یا مرگ در بند</span>
+      <span>${sw('<rect x="-5" y="-5" width="10" height="10" transform="rotate(45)" class="jsig"/>')}آزادی خاص: عفو، توبه، فرار، معامله، از بند به قدرت</span>
+      <span>${sw('<circle r="5" class="jconf"/>')}اعتراف علنی</span></div>`;
+  }
+  function jRangeYears() {
+    const r = J_RANGES.find(([k]) => k === st.jRange) || J_RANGES[0];
+    const ys = JAILS.filter((j) => j._dated);
+    const from = r[2] ?? Math.min(...ys.map((j) => j.from)), to = r[3] ?? NOW;
+    return [Math.floor(from / 5) * 5 - 5, Math.min(NOW, to + 3)];
+  }
+  function jailerTable(list) {
+    const by = new Map();
+    list.forEach((j) => { if (!by.has(j.by)) by.set(j.by, []); by.get(j.by).push(j); });
+    const rows = [...by.entries()].map(([id, js]) => {
+      const people = [...new Set(js.map((j) => j.who))];
+      const era = E[G[id]?.era];
+      // «بعدها»: فرد در دوره‌ای پس از دوره زندان‌بان ثبت شده و نقشی از پایان آن دوره به بعد دارد
+      const after = era?.end != null ? era.end - 1 : null;
+      const later = after != null ? people.filter((pid) => eraIdx(P[pid]?.era) > eraIdx(era.id) && laterRole(pid, after)) : [];
+      const cnt = { n: 0, s: 0, d: 0 };
+      js.forEach((j) => { cnt[jOut(j)[1]]++; });
+      const tot = js.length;
+      const fromY = Math.min(...js.filter((j) => j._dated).map((j) => j.from)), toY = Math.max(...js.filter((j) => j._dated).map((j) => j._end));
+      return { id, js, people, later, cnt, tot, fromY, toY, after };
+    }).sort((a, b) => a.fromY - b.fromY);
+    return `<div class="table-wrap"><table class="stable ivledger jtable"><thead><tr><th>زندان‌بان</th><th>سال‌ها</th><th>حبس / نفر</th><th>چگونه بیرون آمدند</th><th>نقش بعدی، پس از دوره زندان‌بان</th></tr></thead><tbody>
+      ${rows.map((r) => `<tr><td>${jailerChip(r.js[0])}</td><td class="yr">${Number.isFinite(r.fromY) ? `${fa(r.fromY)}–${fa(r.toY)}` : '—'}</td><td>${fa(r.tot)} / ${fa(r.people.length)}</td>
+        <td><span class="jmix"><i class="jo-n" style="flex:${r.cnt.n}" title="آزادی عادی یا نامعلوم: ${fa(r.cnt.n)}"></i><i class="jo-s" style="flex:${r.cnt.s}" title="آزادی خاص: ${fa(r.cnt.s)}"></i><i class="jo-d" style="flex:${r.cnt.d}" title="اعدام یا مرگ در بند: ${fa(r.cnt.d)}"></i></span>
+          <span class="sm muted">${fa(r.cnt.d)} مرگ · ${fa(r.cnt.s)} آزادی خاص</span></td>
+        <td>${r.later.length ? `<div class="mpeople">${r.later.map((pid) => { const lr = laterRole(pid, r.after); return `<span class="jlater">${personBtn(pid)}<span class="sm muted">${esc(lr.t)} ${fa(lr.from)}</span></span>`; }).join('')}</div>` : '<span class="muted sm">—</span>'}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  function jClusterCards(groups, head) {
+    const cards = [];
+    groups.forEach(([key, js]) => {
+      jClusters(js).forEach((c) => {
+        cards.push(`<div class="jclus" style="--c:${jColor(c.items[0])}"><h5>${head(key, c)}<span class="yr">${fa(c.from)}${c.to !== c.from ? '–' + fa(c.to) : ''}</span></h5>
+          <div class="mpeople">${c.people.map((pid) => { const js2 = c.items.filter((j) => j.who === pid); const lr = laterRole(pid, Math.max(...js2.map((j) => j._end)));
+            return `<span class="jlater">${personBtn(pid)}<span class="sm muted">${js2.map(jYears).join('، ')}${lr ? ` · بعدها: ${esc(lr.t)} ${fa(lr.from)}` : ''}</span></span>`; }).join('')}</div></div>`);
+      });
+    });
+    return cards.length ? `<div class="jclusters">${cards.join('')}</div>` : '<p class="empty">—</p>';
+  }
+  function renderPrisons() {
+    const [from, to] = jRangeYears();
+    const vis = JAILS.filter((j) => tierOK(j.tier) && (!st.qn || P[j.who]?._text.includes(st.qn)) && (!st.powers.size || !j._foreign || st.powers.has(j.by)));
+    const inRange = vis.filter((j) => j._dated && j._end >= from && j.from <= to);
+    const people = new Set(vis.map((j) => j.who));
+    const savak = [...new Set(vis.filter((j) => j.by === 'savak').map((j) => j.who))];
+    const savakLater = savak.filter((pid) => eraIdx(P[pid]?.era) > eraIdx('pahlavi2') && laterRole(pid, 1356));
+    const foreign = vis.filter((j) => j._foreign);
+    const sigAll = jSignals().filter((r) => vis.includes(r.j));
+    const sig = sigAll.filter((r) => !st.jSig || r.k === st.jSig);
+    const sigChips = `<div class="types"><button class="tchip${!st.jSig ? ' on' : ''}" data-act="j-sig" data-k="">همه (${fa(sigAll.length)})</button>${Object.entries(J_SIG).map(([k, n]) => `<button class="tchip${st.jSig === k ? ' on' : ''}" data-act="j-sig" data-k="${k}"><span class="jtag jt-${k}">${n}</span> ${fa(sigAll.filter((r) => r.k === k).length)}</button>`).join('')}</div>`;
+    const byAt = new Map(), byJailer = new Map();
+    vis.forEach((j) => {
+      if (j.at) { if (!byAt.has(j.at)) byAt.set(j.at, []); byAt.get(j.at).push(j); }
+      if (!byJailer.has(j.by)) byJailer.set(j.by, []); byJailer.get(j.by).push(j);
+    });
+    const explicit = vis.filter((j) => j.with.length).map((j) => `<span class="jlater">${personBtn(j.who)}<span class="sm muted">با ${j.with.map((id) => esc(P[id]?.name || id)).join('، ')} · ${jYears(j)} · ${esc(jPlace(j))}</span></span>`);
+    $('#stage').innerHTML = `
+      <div class="toolbar"><h2>${ic('bars')} زندان، تبعید و حصر</h2>
+        ${J_RANGES.map(([k, label]) => `<button class="tbtn${st.jRange === k ? ' on' : ''}" data-act="j-range" data-range="${k}">${label}</button>`).join('')}
+        <span class="hint">${fa(vis.length)} حبس · ${fa(people.size)} نفر · ${fa(PRISON ? Object.keys(PRISON).length : 0)} زندان ثبت‌شده</span></div>
+      ${helpBox('هر نوار یک دوره در بند است: زندان، قلعه، حصر خانگی، تبعید، بازداشت به دست قدرت بیگانه، گروگان یا اسیر؛ با سال‌ها، جا، زندان‌بان، چگونگی پایان، سطح اعتبار و منبع. زندان جای آشنایی، بازجویی، توبه‌نامه و جذب است؛ برای همین هم‌بندها، آزادی‌های خاص (عفو، توبه، فرار، معامله، از بند به قدرت)، اعتراف‌های علنی، بند بیگانه و مرگ پیش از دادگاه جدا نشان داده می‌شوند. این‌ها «نشانه» برای پژوهش بیشترند، نه حکم جاسوسی؛ هر ادعای جاسوسی باید معمایی با شاهد موافق و مخالف باشد. هم‌بندی فقط وقتی محاسبه می‌شود که جای حبس ثبت شده و سال‌ها هم‌پوشان باشند؛ «هم‌دوره در بند یک زندان‌بان» ضعیف‌تر است و فقط هم‌زمانی را نشان می‌دهد. نبودن نام کسی یعنی حبسی برای او ثبت نشده، نه اینکه هرگز در بند نبوده.')}
+      <section class="ivsec"><h3>${ic('chart')} چکیده</h3>
+        <div class="kpis">
+          <div class="kpi">${ic('bars')}<b>${fa(vis.length)}</b><span>دوره در بند</span></div>
+          <div class="kpi">${ic('users')}<b>${fa(people.size)}</b><span>نفر</span></div>
+          <div class="kpi">${ic('globe')}<b>${fa(foreign.length)}</b><span>در بند قدرت بیرونی</span></div>
+          <div class="kpi">${ic('skull')}<b>${fa(vis.filter((j) => jOut(j)[1] === 'd').length)}</b><span>اعدام یا مرگ در بند</span></div>
+        </div>
+        ${savak.length ? `<p class="ivverdict">${fa(savak.length)} نفر در بند ساواک ثبت شده‌اند؛ <b>${fa(savakLater.length)} نفرشان</b> پس از ۱۳۵۷ در جمهوری اسلامی مقام گرفتند: ${savakLater.map(personBtn).join(' ')}. زندان شاه مدرسه و شبکه‌ساز حاکمان بعدی بود.</p>` : ''}
+      </section>
+      <section class="ivsec"><h3>${ic('gantt')} خط زمان: هر ردیف یک نفر</h3>${jLegend(inRange)}${jailLanes(inRange, from, to)}</section>
+      <section class="ivsec"><h3>${ic('users')} هم‌بندها: یک زندان، یک زمان</h3>
+        <p class="muted sm">جای حبس ثبت‌شده و سال‌های هم‌پوشان. سال‌ها در حد سال‌اند؛ هم‌پوشانی سال یعنی ممکن است هم‌زمان بوده باشند، نه قطعاً در یک بند.</p>
+        ${jClusterCards([...byAt.entries()], (at) => `${ic('bars')} ${esc(PRISON[at]?.name || at)}${PRISON[at]?.city ? ` <span class="sm muted">${esc(PRISON[at].city)}</span>` : ''}`)}
+        ${explicit.length ? `<h4 class="bhh">هم‌بندی مستند در منابع</h4><div class="mpeople">${explicit.join('')}</div>` : ''}</section>
+      <section class="ivsec"><h3>${ic('hourglass')} هم‌دوره در بند یک زندان‌بان</h3>
+        <p class="muted sm">کسانی که هم‌زمان در بند یک دستگاه بودند، هرجا که بودند؛ و اینکه بعدها به کجا رسیدند.</p>
+        ${jClusterCards([...byJailer.entries()], (by, c) => `${jailerChip(c.items[0])}`)}</section>
+      <section class="ivsec"><h3>${ic('warn')} نشانه‌ها برای سنجش</h3>
+        <p class="muted sm">هر ردیف پرسشی است که باید با سند پاسخ داده شود: چرا او آزاد شد و دیگران نه؟ اعترافش چه بود و زیر چه فشاری؟ در بند بیگانه با چه کسی آشنا شد؟ چه کسی پیش از دادگاه خاموش شد؟ جدیدترها بالاتر.</p>${sigChips}
+        <div class="table-wrap"><table class="stable ivledger"><thead><tr><th>نشانه</th><th>سال</th><th>نام</th><th>بند</th><th>چرا</th><th>اعتبار</th></tr></thead><tbody>
+        ${sig.map((r) => `<tr><td><span class="jtag jt-${r.k}">${J_SIG[r.k]}</span></td><td class="yr">${jYears(r.j)}</td><td>${personBtn(r.j.who)}</td><td class="sm">${esc(J_KIND[r.j.kind])} · ${esc(jPlace(r.j))} · ${jailerChip(r.j)}</td><td class="sm">${esc(r.t)}${r.j.mystery && MY[r.j.mystery] ? ` <button class="lnk sm" data-mystery="${r.j.mystery}">${ic('question')} معما</button>` : ''}</td><td>${tierBadge(r.j.tier)}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">—</td></tr>'}
+        </tbody></table></div></section>
+      <section class="ivsec"><h3>${ic('hand')} زندان‌بان‌ها: چه کسی را گرفتند و آن‌ها بعدها به کجا رسیدند</h3>
+        <p class="muted sm">«نقش بعدی» فقط برای کسانی آمده که در دوره‌ای پس از دوره زندان‌بان ثبت شده‌اند؛ نخستین نقش آن‌ها از پایان آن دوره به بعد.</p>${jailerTable(vis)}</section>
+      <section class="ivsec"><h3>${ic('books')} دفتر کامل</h3>
+        <div class="table-wrap"><table class="stable ivledger"><thead><tr><th>سال</th><th>نام</th><th>گونه</th><th>جا</th><th>زندان‌بان</th><th>پایان</th><th>هم‌بند</th><th>اعتبار و منبع</th></tr></thead><tbody>
+        ${vis.map((j) => { const [on, ot] = jOut(j); const m = jMates(j); return `<tr><td class="yr">${jYears(j)}</td><td>${personBtn(j.who)}</td><td class="sm">${esc(J_KIND[j.kind] || j.kind)}</td><td class="sm">${esc(jPlace(j))}</td><td>${jailerChip(j)}</td>
+          <td><span class="jout jo-${ot}">${esc(on)}</span>${j.confess ? '<span class="jout jo-s">اعتراف علنی</span>' : ''}</td><td>${m.map((id) => `<button class="lnk sm" data-person="${id}">${esc(P[id]?.name)}</button>`).join('، ')}</td><td>${tierBadge(j.tier)}${srcList(j.src)}</td></tr>`; }).join('')}
+        </tbody></table></div></section>`;
+  }
+  function jailItem(j) {
+    const [oname, otype] = jOut(j);
+    const m = jMates(j);
+    return `<li class="jitem${tierOK(j.tier) ? '' : ' faded'}" style="--c:${jColor(j)}">
+      <div class="jhead"><span class="yr">${jYears(j)}</span><b>${esc(J_KIND[j.kind] || j.kind)}</b><span class="sm">${esc(jPlace(j))}</span>${jailerChip(j)}</div>
+      <div><span class="jout jo-${otype}">${esc(oname)}</span>${j.confess ? '<span class="jout jo-s">اعتراف علنی</span>' : ''}</div>
+      ${j.note ? `<p class="sm">${esc(j.note)}</p>` : ''}
+      ${m.length ? `<div class="mpeople"><span class="sm muted">هم‌بند:</span>${m.map(personBtn).join('')}</div>` : ''}
+      <div class="mmeta">${tierBadge(j.tier)}${srcList(j.src)}${j.mystery && MY[j.mystery] ? `<button class="lnk sm" data-mystery="${j.mystery}">${ic('question')} معما <span class="ms ms-${MY[j.mystery].status}">${MSTATUS[MY[j.mystery].status]}</span></button>` : ''}</div></li>`;
+  }
+
   /* ——— ستون جزئیات با تاریخچه بازگشت ——— */
   function renderDetailNav() {
     const b = hist.back[hist.back.length - 1], f = hist.fwd[hist.fwd.length - 1];
@@ -1351,6 +1586,7 @@
       ${p.masks.length ? `<h4>${ic('masks')} تغییر نقاب</h4><ol class="masks">${p.masks.map((m) => `<li class="${tierOK(m.tier) ? '' : 'faded'}"><div class="mfrom">${esc(m.from)}</div><div class="marrow">${m.year ? fa(m.year) + ' ' : ''}⟵</div><div class="mto">${esc(m.to)}</div>${m.note ? `<p class="muted sm">${esc(m.note)}</p>` : ''}<div class="mmeta">${tierBadge(m.tier)}${srcList(m.src)}</div></li>`).join('')}</ol>` : ''}
       ${p.roles.length ? `<h4>${ic('badge')} نقش‌ها</h4><ul class="plain roles">${p.roles.map((r) => `<li>${esc(r.t)}${r.from || r.to ? ` <span class="yr">${r.from ? fa(r.from) : '؟'}–${r.to ? fa(r.to) : '؟'}</span>` : ''}</li>`).join('')}</ul>` : ''}
       ${p.ties.length ? `<h4>${ic('globe')} ریشه‌ها و پیوندهای بیرونی</h4><ul class="plain ties">${p.ties.map((t) => `<li class="${tierOK(t.tier) ? '' : 'faded'}">${powerChip(t.power)}<span class="tkind${t.kind === 'enemy' ? ' enemy' : ''}">${TIE_KINDS[t.kind] || t.kind}</span>${tierBadge(t.tier)}${t.note ? `<div class="sm">${esc(t.note)}</div>` : ''}${srcList(t.src)}</li>`).join('')}</ul>` : ''}
+      ${(J_OF[p.id] || []).length ? `<h4>${ic('bars')} زندان، تبعید و حصر</h4><ol class="jlist">${J_OF[p.id].map(jailItem).join('')}</ol>` : ''}
       ${(TH_OF[p.id] || []).length ? `<h4>${ic('diagram')} در رشته‌های بلند</h4><div class="d-list">${TH_OF[p.id].map((th) => { const k = th.steps.findIndex((s) => s.p.includes(p.id)); return `<button class="row" data-thread="${th.id}" data-step="${k}"><i class="dot sm" style="background:${thColor(th)}"></i><span>${esc(th.name)}</span><span class="sm muted">${fa(th.steps[k].y)}</span></button>`; }).join('')}</div>` : ''}
       ${(IV_OF[p.id] || []).length ? `<h4>${ic('hand')} دخالت‌های خارجی مرتبط</h4><div class="d-list">${IV_OF[p.id].map((v) => `<button class="row${tierOK(v.tier) ? '' : ' faded'}" data-interv="${v.id}">${v.powers.map((w) => `<i class="dot sm" style="background:${PW[w]?.color}"></i>`).join('')}<span>${fa(v.year)} · ${esc(v.title)}</span><span class="sm ${v.placed.includes(p.id) ? 'ivtag-put' : v.removed.includes(p.id) ? 'ivtag-out' : 'muted'}">${v.placed.includes(p.id) ? 'به قدرت رسید' : v.removed.includes(p.id) ? 'برکنار شد' : 'درگیر'}</span>${tierBadge(v.tier)}</button>`).join('')}</div>` : ''}
       ${rel.length ? `<h4>${ic('link')} پیوندها با دیگران</h4>${Object.keys(LINKS).filter((k) => byType[k]).map((k) => `<div class="relgroup"><div class="reltype lk-${k}"><i></i>${LINKS[k].name}</div><ul class="plain">${byType[k].map((x) => `<li><span class="rl">${esc(x.label)}:</span> ${personBtn(x.other)} ${P[x.other] ? relChip(P[x.other]) : ''} ${tierBadge(x.l.tier)}${x.l.note ? `<span class="sm muted"> — ${esc(x.l.note)}</span>` : ''}${srcList(x.l.src)}</li>`).join('')}</ul></div>`).join('')}` : ''}
@@ -1471,7 +1707,7 @@
     const full = st.full && FULLABLE.has(st.view);
     $('#stage').classList.toggle('full', full);
     document.body.classList.toggle('has-full', full);
-    ({ overview: renderOverview, hier: renderHier, tree: renderTree, trail: renderTrail, mysteries: renderMysteries, sources: renderSources, influence: renderInfluence, threads: renderThreads })[st.view]();
+    ({ overview: renderOverview, hier: renderHier, tree: renderTree, trail: renderTrail, mysteries: renderMysteries, sources: renderSources, influence: renderInfluence, threads: renderThreads, prisons: renderPrisons })[st.view]();
   }
   function renderAll() { applyPanels(); renderPickers(); renderNav(); renderStage(); renderDetail(); renderFoot(); }
   function syncHash() {
@@ -1607,6 +1843,9 @@
       else if (a === 'iv-zoom') { st.ivZoom = zoomStep(st.ivZoom, +d.z); store.set('ivZoom', st.ivZoom); renderStage(); }
       else if (a === 'th-zoom') { st.thZoom = zoomStep(st.thZoom, +d.z); store.set('thZoom', st.thZoom); renderStage(); }
       else if (a === 'th-kind') { st.thKind = d.kind || ''; renderStage(); }
+      else if (a === 'j-range') { st.jRange = d.range; store.set('jRange', st.jRange); renderStage(); }
+      else if (a === 'j-zoom') { st.jZoom = zoomStep(st.jZoom, +d.z); store.set('jZoom', st.jZoom); renderStage(); }
+      else if (a === 'j-sig') { st.jSig = d.k || ''; const y = $('#stage').scrollTop; renderStage(); $('#stage').scrollTop = y; }
       else if (a === 'tree-expand') setAllTreeDetails(true);
       else if (a === 'tree-collapse') setAllTreeDetails(false);
       else if (a === 'masks') { st.masks = !st.masks; refilter(); }

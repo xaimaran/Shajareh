@@ -172,7 +172,33 @@ ids(S.threads || [], 'threads');
   });
 });
 
-const unused = S.sources.filter((s) => !JSON.stringify([S.people, S.links, S.mysteries, S.dynasties || [], S.interventions || [], S.threads || []]).includes(`"${s.id}"`)).map((s) => s.id);
+// زندان، تبعید و حصر (prisons.js): زندانی، زندان‌بان (گروه یا قدرت)، جای حبس، نوع، پایان، سال‌ها، اعتبار
+const J_KINDS = ['prison', 'fortress', 'house', 'exile', 'internment', 'hostage', 'captive'];
+const J_OUT = ['released', 'pardon', 'repent', 'amnesty', 'escape', 'exchange', 'deal', 'power', 'transfer', 'executed', 'killed', 'died', 'ongoing', 'unknown'];
+const PR = ids(S.prisons || [], 'prisons');
+(S.jails || []).forEach((j, i) => {
+  const w = `حبس ${i} (${j.who})`;
+  const p = P.get(j.who);
+  if (!p) problems.push(`فرد ناشناخته در ${w}`);
+  if (!J_KINDS.includes(j.kind)) problems.push(`kind نامعتبر «${j.kind}» در ${w}`);
+  if (!J_OUT.includes(j.out)) problems.push(`out نامعتبر «${j.out}» در ${w}`);
+  if (!G.has(j.by) && !PW.has(j.by)) problems.push(`زندان‌بان ناشناخته «${j.by}» در ${w} (باید گروه یا قدرت باشد)`);
+  if (j.at && !PR.has(j.at)) problems.push(`جای حبس ناشناخته «${j.at}» در ${w}`);
+  if (j.from == null) { if (!j.when) problems.push(`نه سال دارد نه when: ${w}`); else warn.push(`حبس بی‌تاریخ (در خط زمان دیده نمی‌شود): ${w}`); }
+  else if (!Number.isInteger(j.from)) problems.push(`سال غیرعددی در ${w}`);
+  yearOk(j.from, w); yearOk(j.to, w);
+  if (j.to != null && j.from != null && j.to < j.from) problems.push(`پایان پیش از آغاز در ${w}`);
+  if (j.out === 'ongoing' && j.to != null) problems.push(`ongoing با سال پایان در ${w}`);
+  if (p && j.from != null && p.born != null && j.from < p.born) problems.push(`حبس پیش از تولد در ${w}`);
+  if (p && j.from != null && p.died != null && j.from > p.died) problems.push(`حبس پس از مرگ در ${w}`);
+  (j.with || []).forEach((id) => { if (!P.has(id)) problems.push(`هم‌بند ناشناخته «${id}» در ${w}`); });
+  if (j.mystery && !MY.has(j.mystery)) problems.push(`معمای ناشناخته «${j.mystery}» در ${w}`);
+  tierOk(j.tier, w); srcOk(j.src, w);
+  if (p && p.death === 'alive' && j.tier > 2) problems.push(`فرد زنده فقط با سطح ۱ یا ۲: ${w}`);
+  if (!j.note) warn.push(`یادداشت ندارد: ${w}`);
+});
+
+const unused = S.sources.filter((s) => !JSON.stringify([S.people, S.links, S.mysteries, S.dynasties || [], S.interventions || [], S.threads || [], S.jails || []]).includes(`"${s.id}"`)).map((s) => s.id);
 if (unused.length) warn.push(`منابع بی‌ارجاع: ${unused.join('، ')}`);
 
 console.log(`افراد ${S.people.length} | پیوندها ${S.links.length} | گروه‌ها ${S.groups.length} | معماها ${S.mysteries.length} | منابع ${S.sources.length} (تطبیق‌شده ${S.sources.filter((s) => s.checked).length})`);
