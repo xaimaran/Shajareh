@@ -59,6 +59,11 @@ Every tie, mask, link and mystery evidence carries `tier` and `src`.
 - Never invent a link, ancestry, conversion or foreign tie to fit the pattern. If evidence shows no foreign root, record none. An empty result is a result.
 - Rumors are not discarded and not believed: each becomes `SH.mystery` with `for[]`, `against[]`, `next[]`, `status`. Status moves only on new evidence.
 - **Every power's media and archives serve that power** — British, American, Russian/Soviet, Chinese, French, Ottoman/Turkish, Israeli, Saudi, the Pahlavi state and the Islamic Republic alike. No camp is trusted by default. Weight goes to (a) primary documents, (b) facts confirmed by *opposing* camps, (c) facts that hurt the source's own side. Record each source's `bias`.
+- **Encyclopedias and popular sites are pointers, not evidence.** Wikipedia, Britannica, Iranica, WikiShia and other widely read sites shape what the public is told. Use them only to find the primary source (document, memoir, court record, contemporary press) and cite that.
+  - A fact resting only on them is at most tier 3.
+  - They are never used alone to reject or weaken a claim, rumor or mystery.
+  - A user's report of a witness (e.g. a video they watched) is recorded as tier 4 with `where` saying the original is not yet found, until it is located.
+  - The validator counts tier 1–2 claims whose sources are all `kind: 'reference'`. Bring that number down by finding primary sources, not by deleting claims.
 - `checked: false` on a source means claims citing it were written from prior knowledge and not yet compared with the text. Set `checked: true` only after reading the actual text (or a scan/translation of it) and fixing any claim it does not support. Say plainly in the session which claims were checked.
 - Living people: only tier 1–2 for ties and masks; tier 3–4 allowed only inside a mystery with explicit counter-evidence and `next` steps. No speculation in `summary`.
 - Dates after the model's knowledge (anything recent) must come from a source fetched in the session, cited.
@@ -83,7 +88,7 @@ data/eNNb-<era>-*.js  supplement for the same era (complete office-holder lists)
 data/kings.js         ruler lists per dynasty → crown and ordinal in the viewer (loaded after all era files)
 data/influence.js     foreign interventions (SH.intervention), loaded after kings.js
 data/threads.js       long threads across regimes (SH.thread), loaded after influence.js
-data/prisons.js       prisons (SH.prison) and every spell in custody, exile or house arrest (SH.jail), loaded last
+data/prisons.js       prisons (SH.prison), every spell in custody, exile or house arrest (SH.jail) and why it ended (SH.release), loaded last
 notes/                Persian research notes: roadmap, library, influence, threads, one log per era
 tools/validate.mjs    read-only check: node tools/validate.mjs
 ```
@@ -132,7 +137,11 @@ SH.jail({ who, from, to?, when?, at?, place?, kind, by, out, with?: [], confess?
 // by:   jailer = a group id (Iranian state of that era) or a power id (foreign jailer)
 // out:  released | pardon | repent | amnesty | escape | exchange | deal | power | transfer | executed | killed | died | ongoing | unknown
 // to missing = end unknown (unless out = ongoing); from missing = undated, then `when` is required. with = documented cellmates.
+// freed?: ['rel-…'] = why and by whose hand the spell ended (one release can free many people)
+SH.release({ id: 'rel-…', year, by: [group or power ids], how, title, note?, tier, src: [], mystery? });
+// how: decision | amnesty | pressure | intercession | campaign | deal | collapse | escape | covert (claimed hidden hand; needs a mystery)
 ```
+A release names the hand that opened the door: the jailer's own decision, a foreign power, an organization (`icrc`, `amnesty`) or a domestic body. Record domestic releases too, so foreign hands can be weighed against them. A claimed hidden hand is a `covert` release at tier 3–4 tied to a mystery. Foreign `by` ids feed the «who was behind» matrix as presence, never control.
 Record every spell in custody for every person, with tier and src like a tie. Prison is where cohorts form, interrogations happen and people are turned, so the view flags special releases (pardon, repentance, escape, deal, straight to power), public confessions, foreign custody, deaths in custody and prisoners who later ran security or courts. These are signals for research, never a verdict: a spying claim goes into a mystery with evidence on both sides. Never invent a cellmate; overlap is computed only from a recorded place and years.
 Threads add no new facts: put the fact in its era file first, then reference it. The «who was behind» matrix weighs Iranians' ties (agent/client 3 = control, ally/trade 1, refuge 0.5), foreign agents' own ties as presence only (1, never control), and control/partner interventions, all × tier weight. Threads judge historical claims (coercion, forged lineage, institutional continuity), never the truth of a faith.
 Bridge people (who cross eras) belong to the era where they held power; link across eras freely.

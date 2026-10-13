@@ -9,3 +9,4 @@ Research project tracing power holders in Iran from the Aq Qoyunlu to today: lin
 - Validate after every data change: `node tools/validate.mjs` (read-only). Zero errors before finishing.
 - Never delete rumors or mysteries; move their status with evidence.
 - Never invent links or ancestry to fit the pattern. No camp's media or archive is trusted by default.
+- Encyclopedias and popular sites (Wikipedia, Britannica, Iranica, WikiShia) are pointers to primary sources, not evidence. A fact resting only on them is at most tier 3, and they are never used alone to reject a claim.

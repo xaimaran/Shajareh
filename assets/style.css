@@ -677,3 +677,15 @@ ul.ev.against li::marker { color: var(--danger); }
 .jitem p { margin: 4px 0; line-height: 1.75; }
 .jhead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; margin-bottom: 3px; }
 .jhead .yr { font-weight: 800; font-variant-numeric: tabular-nums; }
+.ivlanes .jring, .ivlegend .jring { fill: none; stroke-width: 2.6; }
+.jrel { display: inline-block; font-size: 11px; font-weight: 800; padding: 0 7px; border-radius: 6px; margin-inline-end: 4px; border: 1px solid var(--line); background: var(--panel-2); white-space: nowrap; }
+.jrel.jh-covert { color: var(--danger); border-style: dashed; border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
+.jrel.jh-pressure, .jrel.jh-campaign, .jrel.jh-intercession, .jrel.jh-deal { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+.jrels { margin: 4px 0; padding: 6px 8px; border-radius: 8px; background: var(--panel-2); }
+.jrels ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
+.jrels li { line-height: 1.8; }
+.jrels li.jfr, .jreltable tr.jfr { box-shadow: inset 3px 0 0 var(--accent); }
+.jrels li.faded { opacity: .45; }
+.jhands { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0 10px; }
+.jhand { display: inline-flex; align-items: center; gap: 5px; }
+.jt-freedForeign { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
