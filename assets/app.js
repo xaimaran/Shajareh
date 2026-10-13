@@ -44,7 +44,7 @@
   const SKIND = { primary: 'دست اول', archive: 'سند / آرشیو', academic: 'پژوهشی', memoir: 'خاطرات', press: 'مطبوعات', reference: 'دانشنامه', polemic: 'جدلی', video: 'ویدیو' };
   const VIEWS = [
     ['overview', 'gantt', 'گانت'], ['hier', 'sitemap', 'سلسله‌مراتب'], ['tree', 'listTree', 'شجره'],
-    ['influence', 'hand', 'نفوذ خارجی'], ['trail', 'route', 'ردپا'], ['mysteries', 'question', 'معماها'], ['sources', 'books', 'منابع'],
+    ['influence', 'hand', 'نفوذ خارجی'], ['threads', 'diagram', 'رشته‌ها'], ['trail', 'route', 'ردپا'], ['mysteries', 'question', 'معماها'], ['sources', 'books', 'منابع'],
   ];
   /* ——— نفوذ خارجی (data/influence.js) ——— */
   const IV_CAT = {
@@ -177,7 +177,7 @@
   };
   const st = {
     view: 'overview', sel: null, q: '', qn: '', powers: new Set(), rels: new Set(), maxTier: 4, masks: false, violent: false,
-    ivRange: store.get('ivRange', 'century'),
+    ivRange: store.get('ivRange', 'century'), ivZoom: store.get('ivZoom', 1), thZoom: store.get('thZoom', 1), thKind: '', thStep: undefined,
     zoom: store.get('zoom', 5), treeMode: store.get('treeMode', 'power'), mstatus: '', full: false, pk: null,
     types: new Set(Object.keys(LINKS).filter((k) => LINKS[k].descent)),
     open: new Set(store.get('open', ['era:roots', 'era:safavid'])),
@@ -248,7 +248,7 @@
     return s ? `<button class="src${s.checked ? ' ok' : ''}" data-source="${s.id}" title="${esc(s.title)}${s.checked ? '' : ' — تطبیق نشده'}">${esc(s.short || s.title)}</button>` : `<span class="src bad">${esc(id)}</span>`;
   }).join('')}</span>` : '');
   const eraOf = (p) => E[p.era];
-  const selName = (s) => (!s ? 'چکیده کل' : s.kind === 'person' ? P[s.id]?.name : s.kind === 'era' ? E[s.id]?.name : s.kind === 'group' ? G[s.id]?.name : s.kind === 'mystery' ? MY[s.id]?.title : s.kind === 'source' ? SRC[s.id]?.title : s.kind === 'intervention' ? IV[s.id]?.title : '') || '';
+  const selName = (s) => (!s ? 'چکیده کل' : s.kind === 'person' ? P[s.id]?.name : s.kind === 'era' ? E[s.id]?.name : s.kind === 'group' ? G[s.id]?.name : s.kind === 'mystery' ? MY[s.id]?.title : s.kind === 'source' ? SRC[s.id]?.title : s.kind === 'intervention' ? IV[s.id]?.title : s.kind === 'thread' ? TH[s.id]?.name : '') || '';
 
   function summarize(people) {
     const ids = new Set(people.map((p) => p.id));
@@ -883,51 +883,103 @@
     });
     return Object.values(s).sort((a, b) => (b.control + b.partner) - (a.control + a.partner) || b.hostile - a.hostile);
   }
+  /* ——— خط زمان ردیفی مشترک (نفوذ خارجی و رشته‌ها): محور راست‌به‌چپ هم‌اندازه صفحه، ستون برچسب ثابت،
+     بزرگ‌نمایی، کارت شناور و برچسب کوتاه رخدادهای کلیدی بی‌هم‌پوشانی ——— */
+  const SWIM_LW = 150;
+  const ZOOMS = [1, 1.5, 2, 3, 4, 6];
+  const tipAttr = (lines) => `data-tip="${esc(lines.filter(Boolean).join('\n'))}"`;
+  function swimAxis(from, to, zoom, lw = SWIM_LW) {
+    const span = Math.max(1, to - from);
+    const avail = Math.max(420, ($('#stage')?.clientWidth || 1000) - 80 - lw);
+    const px = ((avail - 40) / span) * zoom;
+    const W = Math.round(span * px + 40);
+    const x = (y) => 20 + (W - 40) * (1 - (Math.min(Math.max(y, from), to) - from) / span);
+    return { from, to, span, px, W, x, zoom, lw };
+  }
+  function swimFrame(A, H, top) {
+    let g = '';
+    ERAS.filter((e) => (e.end ?? NOW) >= A.from && e.start <= A.to).forEach((e) => {
+      const r = A.x(e.start), l = A.x(e.end ?? NOW), w = Math.max(0, r - l);
+      g += `<rect x="${l}" y="0" width="${w}" height="${H}" fill="${e.color}" opacity=".08"/>`;
+      if (w > 34) g += `<text x="${(l + r) / 2}" y="15" class="iveralbl" text-anchor="middle">${esc(w > 70 ? e.short || e.name : (e.short || e.name).slice(0, 4))}</text>`;
+    });
+    const step = [5, 10, 25, 50, 100].find((s) => s * A.px >= 46) || 100;
+    for (let y = Math.ceil(A.from / step) * step; y <= A.to; y += step) {
+      g += `<line x1="${A.x(y)}" x2="${A.x(y)}" y1="${top - 10}" y2="${H}" class="ivtick"/><text x="${A.x(y)}" y="${top - 14}" class="ivyr" text-anchor="middle">${fa(y)}</text>`;
+    }
+    return g;
+  }
+  // برچسب کوتاه بالای نشانه؛ اگر جا نبود زیر آن، و اگر آن‌جا هم نبود نمی‌آید (کارت شناور همیشه هست)
+  function swimLabel(slots, x, cy, text, r) {
+    const w = text.length * 6.6 + 8;
+    for (const [k, y] of [['up', cy - r - 7], ['down', cy + r + 15]]) {
+      const used = (slots[k] ||= []);
+      if (!used.some(([a, b]) => x + w / 2 > a && x - w / 2 < b)) {
+        used.push([x - w / 2, x + w / 2]);
+        return `<text x="${x}" y="${y}" class="swim-klbl" text-anchor="middle">${esc(text)}</text>`;
+      }
+    }
+    return '';
+  }
+  function swimHTML(A, rows, H, inner, top, rowH, act) {
+    const zi = ZOOMS.indexOf(A.zoom);
+    return `<div class="swim-tools"><button class="ibtn" data-act="${act}" data-z="-1" title="کوچک‌نمایی"${zi <= 0 ? ' disabled' : ''}>${ic('zoomOut')}</button>
+        <button class="tbtn" data-act="${act}" data-z="0" title="هم‌اندازه صفحه">${fa(Math.round(A.zoom * 100))}٪</button>
+        <button class="ibtn" data-act="${act}" data-z="1" title="بزرگ‌نمایی"${zi >= ZOOMS.length - 1 ? ' disabled' : ''}>${ic('zoomIn')}</button>
+        <span class="hint">نشانگر را روی هر نشانه نگه دارید؛ با کلیک، جزئیات و منبع در ستون کناری می‌آید.</span></div>
+      <div class="swim" style="--lw:${A.lw}px">
+        <div class="swim-labels"><div style="height:${top}px"></div>${rows.map((r) => `<div class="swim-lbl${r.cls ? ' ' + r.cls : ''}" style="height:${rowH}px">${r.label}</div>`).join('')}</div>
+        <div class="swim-scroll ivlane-wrap" dir="ltr"><svg class="ivlanes" width="${A.W}" height="${H}" viewBox="0 0 ${A.W} ${H}">${inner}</svg></div>
+      </div>`;
+  }
+  const zoomStep = (cur, d) => (d === 0 ? 1 : ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(cur) + d))] ?? 1);
+
   function ivShape(v, cx, cy, c) {
     const cat = IV_KIND[v.kind]?.[1];
-    const op = { 1: 1, 2: 0.85, 3: 0.55, 4: 0.35 }[v.tier ?? 2];
+    const op = { 1: 1, 2: 0.88, 3: 0.6, 4: 0.4 }[v.tier ?? 2];
     const sel = st.sel && st.sel.kind === 'intervention' && st.sel.id === v.id;
-    const ring = v.placed.length || v.removed.length ? `<circle cx="${cx}" cy="${cy}" r="11" class="ivring"/>` : '';
-    const mark = cat === 'control' ? `<circle cx="${cx}" cy="${cy}" r="7" fill="${c}" class="ivc"/>`
-      : cat === 'partner' ? `<circle cx="${cx}" cy="${cy}" r="6" fill="var(--panel)" stroke="${c}" stroke-width="2.5"/>`
-      : cat === 'hostile' ? `<rect x="${cx - 5.5}" y="${cy - 5.5}" width="11" height="11" transform="rotate(45 ${cx} ${cy})" fill="${c}" class="ivh"/>`
-      : `<circle cx="${cx}" cy="${cy}" r="6" fill="none" stroke="${c}" stroke-width="1.6" stroke-dasharray="2 2"/>`;
-    return `<g class="ivm${sel ? ' sel' : ''}" data-interv="${v.id}" opacity="${op}"><title>${esc(`${fa(v.year)}${v.end ? '–' + fa(v.end) : ''} · ${v.title} · ${IV_KIND[v.kind]?.[0] || v.kind} · ${TIERS[v.tier ?? 2]}`)}</title><circle cx="${cx}" cy="${cy}" r="14" class="ivsel"/>${ring}${mark}</g>`;
+    const ring = v.placed.length || v.removed.length ? `<circle cx="${cx}" cy="${cy}" r="14" class="ivring"/>` : '';
+    const mark = cat === 'control' ? `<circle cx="${cx}" cy="${cy}" r="9" fill="${c}" class="ivc"/>`
+      : cat === 'partner' ? `<circle cx="${cx}" cy="${cy}" r="8" fill="var(--panel)" stroke="${c}" stroke-width="3"/>`
+      : cat === 'hostile' ? `<rect x="${cx - 7}" y="${cy - 7}" width="14" height="14" transform="rotate(45 ${cx} ${cy})" fill="${c}" class="ivh"/>`
+      : `<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="3 2"/>`;
+    const who = (ids, lbl) => (ids.length ? `${lbl}: ${ids.map((id) => P[id]?.name || id).join('، ')}` : '');
+    const tip = tipAttr([v.title, `${fa(v.year)}${v.end ? '–' + fa(v.end) : ''} ش · ${v.powers.map((w) => PW[w]?.name || w).join(' و ')}`,
+      `${IV_CAT[cat]?.name || ''}: ${IV_KIND[v.kind]?.[0] || v.kind} · اعتبار: ${TIERS[v.tier ?? 2]}`, who(v.placed, 'به قدرت رسید'), who(v.removed, 'برکنار شد')]);
+    return `<g class="ivm${sel ? ' sel' : ''}" data-interv="${v.id}" opacity="${op}" ${tip} aria-label="${esc(v.title)}"><circle cx="${cx}" cy="${cy}" r="19" class="ivsel"/><circle cx="${cx}" cy="${cy}" r="16" class="ivhit"/>${ring}${mark}</g>`;
   }
   function ivLegend() {
-    const sw = (inner) => `<svg viewBox="-12 -12 24 24" width="20" height="20">${inner}</svg>`;
+    const sw = (inner) => `<svg viewBox="-15 -15 30 30" width="24" height="24">${inner}</svg>`;
     return `<div class="ivlegend">
-      <span>${sw('<circle r="7" fill="var(--muted)"/>')}مهار</span>
-      <span>${sw('<circle r="6" fill="var(--panel)" stroke="var(--muted)" stroke-width="2.5"/>')}همکاری</span>
-      <span>${sw('<rect x="-5.5" y="-5.5" width="11" height="11" transform="rotate(45)" fill="var(--muted)" stroke="var(--danger)" stroke-width="2"/>')}دشمنی</span>
-      <span>${sw('<circle r="6" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="2 2"/>')}خودداری</span>
-      <span>${sw('<circle r="10" fill="none" stroke="var(--ink)" stroke-width="1.5"/><circle r="5" fill="var(--muted)"/>')}کسی را گماشت یا برکنار کرد</span>
+      <span>${sw('<circle r="9" fill="var(--muted)"/>')}مهار</span>
+      <span>${sw('<circle r="8" fill="var(--panel)" stroke="var(--muted)" stroke-width="3"/>')}همکاری</span>
+      <span>${sw('<rect x="-7" y="-7" width="14" height="14" transform="rotate(45)" fill="var(--muted)" stroke="var(--danger)" stroke-width="2"/>')}دشمنی</span>
+      <span>${sw('<circle r="8" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3 2"/>')}خودداری</span>
+      <span>${sw('<circle r="13" fill="none" stroke="var(--ink)" stroke-width="1.5"/><circle r="7" fill="var(--muted)"/>')}کسی را گماشت یا برکنار کرد</span>
+      <span>${sw('<line x1="-13" x2="13" y1="0" y2="0" stroke="var(--muted)" stroke-width="8" stroke-linecap="round" opacity=".35"/>')}بازه چندساله</span>
       <span class="muted">کم‌رنگی = اعتبار کمتر</span></div>`;
   }
   function ivLanes(list, rows, from, to) {
     if (!rows.length) return '<p class="empty">رخدادی در این بازه و با این فیلترها نیست.</p>';
-    const LW = 150, RH = 38, TOP = 30, span = Math.max(1, to - from);
-    const W = Math.max(620, span * 6);
-    const x = (y) => 14 + W - ((Math.min(Math.max(y, from), to) - from) / span) * W;
-    const H = TOP + rows.length * RH + 10;
-    let g = '';
-    ERAS.filter((e) => (e.end ?? NOW) >= from && e.start <= to).forEach((e) => {
-      const r = x(e.start), l = x(e.end ?? NOW);
-      g += `<rect x="${l}" y="0" width="${Math.max(0, r - l)}" height="${H}" fill="${e.color}" opacity=".07"/><text x="${(l + r) / 2}" y="12" class="iveralbl" text-anchor="middle">${esc(e.short || e.name)}</text>`;
-    });
-    for (let y = Math.ceil(from / 10) * 10; y <= to; y += 10) g += `<line x1="${x(y)}" x2="${x(y)}" y1="18" y2="${H}" class="ivtick"/><text x="${x(y)}" y="27" class="ivyr" text-anchor="middle">${fa(y)}</text>`;
+    const A = swimAxis(from, to, st.ivZoom);
+    const RH = 72, TOP = 48, H = TOP + rows.length * RH + 8;
+    let g = swimFrame(A, H, TOP);
     rows.forEach((r, i) => {
       const cy = TOP + i * RH + RH / 2, c = PW[r.id]?.color || '#888';
-      g += `<line x1="10" x2="${W + 18}" y1="${cy}" y2="${cy}" class="ivrow"/><text x="${W + LW + 10}" y="${cy + 4}" text-anchor="start" class="ivplbl" fill="${c}">${esc(PW[r.id]?.name || r.id)}</text>`;
-      const seen = Object.create(null);
+      g += `<line x1="0" x2="${A.W}" y1="${TOP + (i + 1) * RH}" y2="${TOP + (i + 1) * RH}" class="ivrow"/><line x1="10" x2="${A.W - 10}" y1="${cy}" y2="${cy}" stroke="${c}" stroke-opacity=".25" stroke-width="1.5"/>`;
+      const seen = Object.create(null), slots = {};
+      let marks = '', labels = '';
       list.filter((v) => v.powers.includes(r.id)).forEach((v) => {
         const k = (seen[v.year] = (seen[v.year] ?? -1) + 1);
-        const dy = k ? (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 8 : 0;
-        if (v._end > v.year) g += `<line x1="${x(v._end)}" x2="${x(v.year)}" y1="${cy + dy}" y2="${cy + dy}" stroke="${c}" stroke-width="5" stroke-linecap="round" opacity=".3"/>`;
-        g += ivShape(v, x(v.year), cy + dy, c);
+        const dy = k ? (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 11 : 0;
+        if (v._end > v.year) marks += `<line x1="${A.x(v._end)}" x2="${A.x(v.year)}" y1="${cy + dy}" y2="${cy + dy}" stroke="${c}" stroke-width="8" stroke-linecap="round" opacity=".28"/>`;
+        marks += ivShape(v, A.x(v.year), cy + dy, c);
+        if ((v.placed.length || v.removed.length) && !dy) labels += swimLabel(slots, A.x(v.year), cy, `${IV_KIND[v.kind]?.[0] || ''} ${fa(v.year)}`, 14);
       });
+      g += marks + labels;
     });
-    return `<div class="ivlane-wrap"><svg class="ivlanes" direction="rtl" width="${W + LW + 20}" height="${H}" viewBox="0 0 ${W + LW + 20} ${H}">${g}</svg></div>`;
+    const lrows = rows.map((r) => ({ label: `${powerChip(r.id)}<span class="muted sm">${fa(r.n)}</span>` }));
+    return swimHTML(A, lrows, H, g, TOP, RH, 'iv-zoom');
   }
   function ivMatrix(list, rows, from, to) {
     const d0 = Math.floor(from / 10) * 10, decs = [];
@@ -1002,7 +1054,8 @@
         <div class="ivverdict">
           <p>${top.length ? `بیشترین مهار و همکاری ثبت‌شده: <b>${top.slice(0, 2).map((r) => esc(PW[r.id]?.name)).join('، سپس ')}</b>.` : 'هیچ مهار یا همکاری ثبت نشده.'}
           ${hostile.length ? ` بیشترین دشمنی: <b>${esc(PW[hostile[0].id]?.name)}</b>.` : ''}
-          ${lastPlaced ? ` آخرین گماشتن مستند یا معتبر به دست قدرت خارجی: <button class="lnk" data-interv="${lastPlaced.id}">${esc(lastPlaced.title)} (${fa(lastPlaced.year)})</button>${lastPlaced.year < 1357 && to > 1357 ? '؛ پس از ۱۳۵۷ هیچ گماشتنی در سطح مستند یا معتبر ثبت نشده است' : ''}.` : ' در این بازه هیچ گماشتنی در سطح مستند یا معتبر ثبت نشده است.'}</p>
+          ${lastPlaced ? ` آخرین گماشتن مستند یا معتبر به دست قدرت خارجی: <button class="lnk" data-interv="${lastPlaced.id}">${esc(lastPlaced.title)} (${fa(lastPlaced.year)})</button>${lastPlaced.year < 1357 && to > 1357 ? '؛ پس از ۱۳۵۷ هیچ گماشتنی در سطح مستند یا معتبر ثبت نشده است' : ''}.` : ' در این بازه هیچ گماشتنی در سطح مستند یا معتبر ثبت نشده است.'}
+          <button class="lnk" data-view="threads">${ic('diagram')} همین پرسش برای ۶۰۰ سال، از آق‌قویونلو تا امروز: نمای «رشته‌ها»</button></p>
         </div>
         <div class="ivbars"><div class="ivbar head"><span>قدرت</span><span>${ic('hand')} مهار ▮ همکاری ▯ دشمنی</span><span>مهار · همکاری · <em>دشمنی</em> · <u>خودداری</u></span></div>${rows.map(bar).join('') || '<p class="empty">—</p>'}</div>
       </section>
@@ -1027,6 +1080,217 @@
       <h4>${ic('books')} منابع</h4>${srcList(v.src)}`;
   }
 
+  /* ——— رشته‌های بلند (data/threads.js): بنیادها، شبکه‌ها و دست‌های بیرونی در ۵۰۰ سال ———
+     هر گام به رکوردی موجود ارجاع می‌دهد؛ سطح اعتبار و منبع از همان رکورد خوانده می‌شود. */
+  const THREADS = S.threads || [];
+  const TH = idx(THREADS);
+  const TH_KIND = { foundation: ['بنیاد ماندگار', '#8d5a2b'], network: ['شبکه و خاندان', '#2e7d6b'], foreign: ['دست بیرونی', '#3a6fd0'], pattern: ['الگوی رفتار قدرت', '#7a2e2e'] };
+  const TH_VERDICT = { continuous: 'پیوسته تا امروز', shifted: 'جابه‌جا شد', broken: 'گسست', contested: 'محل مناقشه' };
+  const thColor = (th) => (th.power && PW[th.power]?.color) || TH_KIND[th.kind]?.[1] || '#888';
+  function thResolve(s) {
+    const r = { tier: s.tier, src: s.src, text: s.t, open: null };
+    const i = (s.ref || '').indexOf(':'), kind = s.ref ? s.ref.slice(0, i) : '', rest = s.ref ? s.ref.slice(i + 1) : '';
+    if (kind === 'link') {
+      const m = rest.match(/^([^>]+)>([^:]+):(\w+)$/);
+      const l = m && S.links.find((x) => x.from === m[1] && x.to === m[2] && x.type === m[3]);
+      if (l) { r.tier ??= l.tier; r.src ??= l.src; r.text ||= `${P[l.from]?.name} ← ${LINKS[l.type]?.name} → ${P[l.to]?.name}${l.note ? ': ' + l.note : ''}`; r.open = ['person', l.to]; }
+    } else if (kind === 'iv' && IV[rest]) {
+      const v = IV[rest]; r.tier ??= v.tier; r.src ??= v.src; r.text ||= v.title; r.open = ['interv', v.id];
+    } else if (kind === 'my' && MY[rest]) {
+      const m = MY[rest]; r.tier ??= 3; r.text ||= m.title; r.open = ['mystery', m.id]; r.mystery = m;
+    } else if (kind === 'mask') {
+      const [pid, n] = rest.split(':'); const mk = P[pid]?.masks?.[+n];
+      if (mk) { r.tier ??= mk.tier; r.src ??= mk.src; r.text ||= `${mk.from} ← ${mk.to}`; r.open = ['person', pid]; }
+    } else if (kind === 'tie') {
+      const [pid, pw] = rest.split(':'); const t = (P[pid]?.ties || []).find((x) => x.power === pw);
+      if (t) { r.tier ??= t.tier; r.src ??= t.src; r.text ||= t.note || TIE_KINDS[t.kind]; r.open = ['person', pid]; }
+    }
+    r.tier ??= 2; r.src ||= [];
+    if (!r.open && (s.p || []).length) r.open = ['person', s.p[0]];
+    return r;
+  }
+  const TH_OF = Object.create(null);
+  THREADS.forEach((th) => {
+    th.steps = (th.steps || []).slice().sort((a, b) => a.y - b.y);
+    th.steps.forEach((s) => { s.p ||= []; s._r = thResolve(s); s.p.forEach((id) => { if (!(TH_OF[id] ||= []).includes(th)) TH_OF[id].push(th); }); });
+    th._text = norm([th.name, th.question, th.summary, th.verdict?.t, ...th.steps.map((s) => s._r.text), ...th.steps.flatMap((s) => s.p.map((id) => P[id]?.name))].join(' '));
+  });
+  const thVisible = (th) => (!st.thKind || th.kind === st.thKind) && (!st.qn || th._text.includes(st.qn))
+    && (!st.powers.size || !th.power || st.powers.has(th.power));
+
+  // چه کسی پشت سر بود؟ پیوندهای شخصی (کارگزار، دست‌نشانده، متحد، داد و ستد، پناهنده؛ و حضور مأموران خارجی) و دخالت‌های «مهار» و «همکاری»
+  const BEHIND_W = { agent: 3, client: 3, ally: 1, trade: 1, refuge: 0.5 };
+  function powerSpan(p) {
+    const rs = p.roles.filter((r) => Number.isFinite(r.from));
+    if (rs.length) return [Math.min(...rs.map((r) => r.from)), Math.max(...rs.map((r) => r.to ?? (p.death === 'alive' ? NOW : r.from)))];
+    if (p.active) return [p.active[0], p.active[1] ?? NOW];
+    if (Number.isFinite(p.born)) return [p.born + 20, Math.min(p.died ?? NOW, p.born + 65)];
+    if (Number.isFinite(p.died)) return [p.died - 20, p.died];
+    return null;
+  }
+  function behindItems() {
+    const out = [];
+    S.people.forEach((p) => {
+      const span = powerSpan(p);
+      if (!span) return;
+      // مأمور خارجی حاضر در ایران (گروه از نوع «قدرت خارجی») فقط «حضور» آن قدرت است؛ «مهار» فقط از ایرانیِ کارگزار یا دست‌نشانده
+      const agentAbroad = G[p.groups[0]]?.kind === 'foreign';
+      p.ties.forEach((t) => {
+        const w = agentAbroad ? (t.kind === 'enemy' || t.kind === 'education' ? 0 : 1) : BEHIND_W[t.kind];
+        if (!w || !tierOK(t.tier) || (st.powers.size && !st.powers.has(t.power))) return;
+        out.push({ power: t.power, from: span[0], to: span[1], w: w * (TIER_W[t.tier ?? 2] || 0.5), control: !agentAbroad && (t.kind === 'agent' || t.kind === 'client'), who: p.id });
+      });
+    });
+    IVS.forEach((v) => {
+      const [, cat, w] = IV_KIND[v.kind] || [];
+      if ((cat !== 'control' && cat !== 'partner') || !tierOK(v.tier)) return;
+      v.powers.forEach((pw) => {
+        if (st.powers.size && !st.powers.has(pw)) return;
+        out.push({ power: pw, from: v.year, to: v._end, w: w * (TIER_W[v.tier ?? 2] || 0.5), control: cat === 'control', iv: v.id });
+      });
+    });
+    return out;
+  }
+  function behindMatrix(items) {
+    const B0 = 800, STEP = 25, bins = [];
+    for (let b = B0; b <= NOW; b += STEP) bins.push(b);
+    const agg = Object.create(null);
+    items.forEach((it) => bins.forEach((b) => {
+      if (it.to < b || it.from > b + STEP - 1) return;
+      const r = (agg[it.power] ||= { id: it.power, total: 0, cells: {} });
+      const c = (r.cells[b] ||= { w: 0, ctl: 0, who: new Set(), ivs: new Set() });
+      c.w += it.w; r.total += it.w;
+      if (it.control) c.ctl += it.w;
+      if (it.who) c.who.add(it.who);
+      if (it.iv) c.ivs.add(it.iv);
+    }));
+    const rows = Object.values(agg).sort((a, b) => b.total - a.total).slice(0, 14);
+    if (!rows.length) return '<p class="empty">با این فیلترها پیوندی نیست.</p>';
+    const max = Math.max(1, ...rows.flatMap((r) => Object.values(r.cells).map((c) => c.w)));
+    const eraAt = (y) => ERAS.filter((e) => e.start <= y && (e.end ?? NOW) >= y).pop();
+    const head = bins.map((b) => { const e = eraAt(b + 12); return `<th class="bhy"><i style="background:${e ? e.color : 'transparent'}" title="${esc(e ? e.name : '')}"></i>${fa(b)}</th>`; }).join('');
+    const cell = (r, b) => {
+      const c = r.cells[b];
+      if (!c) return '<td class="bh"></td>';
+      const a = Math.round(14 + 76 * Math.sqrt(c.w / max));
+      const names = [...c.who].map((id) => P[id]?.name).filter(Boolean);
+      const tip = tipAttr([`${PW[r.id]?.name || r.id} · ${fa(b)}–${fa(b + STEP - 1)} ش`,
+        `مهار (کارگزار، دست‌نشانده، کودتا، اشغال…): ${fmt1(c.ctl)}`, `همکاری و حضور: ${fmt1(c.w - c.ctl)}`,
+        names.length ? `افراد: ${names.slice(0, 6).join('، ')}${names.length > 6 ? ` و ${fa(names.length - 6)} تن دیگر` : ''}` : '',
+        c.ivs.size ? `رخدادها: ${[...c.ivs].map((id) => IV[id]?.title).slice(0, 3).join('؛ ')}` : '']);
+      return `<td class="bh${c.ctl ? ' ctl' : ''}" style="--c:${PW[r.id]?.color || '#888'};--a:${a}%" ${tip}>${c.ctl ? '<b>●</b>' : ''}</td>`;
+    };
+    return `<div class="table-wrap bh-wrap"><table class="bhmatrix"><thead><tr><th class="bhp">قدرت</th>${head}</tr></thead>
+      <tbody>${rows.map((r) => `<tr><th class="bhp">${powerChip(r.id)}</th>${bins.map((b) => cell(r, b)).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  function behindByEra(items) {
+    const row = ({ e, ctl, part }) => `<div class="bherarow"><span class="era-chip" style="--c:${e.color}">${esc(e.short || e.name)}</span>
+      <div><b class="bhlbl ctl">مهار مستند:</b> ${ctl.length ? ctl.map((r) => `${powerChip(r.id)}<span class="sm muted">${fmt1(r.ctl)}</span>`).join(' ') : '<span class="muted sm">هیچ مهار مستندی ثبت نشده</span>'}</div>
+      <div><b class="bhlbl">همکاری و حضور:</b> ${part.length ? part.map((r) => `${powerChip(r.id)}<span class="sm muted">${fmt1(r.w - r.ctl)}</span>`).join(' ') : '<span class="muted sm">—</span>'}</div></div>`;
+    return ERAS.map((e) => {
+      const a = e.start, b = e.end ?? NOW, agg = {};
+      items.forEach((it) => {
+        if (it.to < a || it.from > b) return;
+        const r = (agg[it.power] ||= { id: it.power, w: 0, ctl: 0 });
+        r.w += it.w; if (it.control) r.ctl += it.w;
+      });
+      const rs = Object.values(agg);
+      return row({ e, ctl: rs.filter((r) => r.ctl > 0).sort((x, y) => y.ctl - x.ctl).slice(0, 3), part: rs.filter((r) => r.w - r.ctl > 0.01).sort((x, y) => (y.w - y.ctl) - (x.w - x.ctl)).slice(0, 3) });
+    }).join('');
+  }
+
+  function thMark(th, s, k, cx, cy, sel) {
+    const c = thColor(th), r = s._r, solid = r.tier <= 2;
+    const tip = tipAttr([`${fa(s.y)} ش · ${th.name}`, r.text, s.p.map((id) => P[id]?.name).filter(Boolean).join('، '),
+      `اعتبار: ${TIERS[r.tier]}${s.k === 'break' ? ' · گسست یا کوشش برای بریدن' : ''}${s.k === 'claim' || r.mystery ? ' · ادعا / معما' : ''}`]);
+    const shape = s.k === 'break'
+      ? `<rect x="${cx - 7}" y="${cy - 7}" width="14" height="14" rx="2" fill="var(--panel)" stroke="var(--danger)" stroke-width="2.5"/><path d="M${cx - 4} ${cy - 4}L${cx + 4} ${cy + 4}M${cx + 4} ${cy - 4}L${cx - 4} ${cy + 4}" stroke="var(--danger)" stroke-width="2.2"/>`
+      : s.k === 'claim' || r.mystery
+        ? `<circle cx="${cx}" cy="${cy}" r="9" fill="var(--panel)" stroke="${c}" stroke-width="2.2" stroke-dasharray="3 2"/><text x="${cx}" y="${cy + 4}" class="thq" text-anchor="middle">؟</text>`
+        : `<circle cx="${cx}" cy="${cy}" r="${solid ? 8.5 : 8}" fill="${solid ? c : 'var(--panel)'}" stroke="${c}" stroke-width="${solid ? 2 : 2.5}" class="thc"/>`;
+    return `<g class="ivm thm${sel ? ' sel' : ''}" data-thread="${th.id}" data-step="${k}" ${tip}><circle cx="${cx}" cy="${cy}" r="19" class="ivsel"/><circle cx="${cx}" cy="${cy}" r="16" class="ivhit"/>${shape}</g>`;
+  }
+  function threadLanes(list) {
+    if (!list.length) return '<p class="empty">رشته‌ای با این فیلترها نیست.</p>';
+    const from = Math.floor((Math.min(...list.flatMap((t) => t.steps.map((s) => s.y))) - 15) / 10) * 10;
+    const A = swimAxis(from, NOW, st.thZoom, 210);
+    const RH = 78, TOP = 48, H = TOP + list.length * RH + 8;
+    let g = swimFrame(A, H, TOP);
+    list.forEach((th, i) => {
+      const cy = TOP + i * RH + RH / 2, c = thColor(th);
+      g += `<line x1="0" x2="${A.W}" y1="${TOP + (i + 1) * RH}" y2="${TOP + (i + 1) * RH}" class="ivrow"/>`;
+      let lines = '', marks = '', labels = '';
+      const slots = {};
+      const xs = th.steps.map((s) => A.x(s.y));
+      th.steps.forEach((s, k) => {
+        if (k) {
+          const p = th.steps[k - 1], weak = s._r.tier > 2 || p._r.tier > 2 || s.k || s._r.mystery;
+          lines += `<line x1="${xs[k - 1]}" x2="${xs[k]}" y1="${cy}" y2="${cy}" stroke="${s.k === 'break' ? 'var(--danger)' : c}" stroke-width="${weak ? 2 : 4}" ${weak ? 'stroke-dasharray="5 4"' : ''} stroke-opacity=".75"/>`;
+        }
+        const sel = st.sel && st.sel.kind === 'thread' && st.sel.id === th.id && st.thStep === k;
+        marks += thMark(th, s, k, xs[k], cy, sel);
+        labels += swimLabel(slots, xs[k], cy, fa(s.y), 10);
+      });
+      if (th.verdict?.kind === 'continuous') lines += `<line x1="${A.x(NOW)}" x2="${xs[xs.length - 1]}" y1="${cy}" y2="${cy}" stroke="${c}" stroke-width="2" stroke-dasharray="1 4" stroke-opacity=".7"/>`;
+      g += lines + marks + labels;
+    });
+    const rows = list.map((th) => ({ cls: 'multi', label: `<button class="thname" data-thread="${th.id}" style="--c:${thColor(th)}">${esc(th.name)}</button><span class="thv thv-${th.verdict?.kind}">${TH_VERDICT[th.verdict?.kind] || ''}</span>` }));
+    return swimHTML(A, rows, H, g, TOP, RH, 'th-zoom');
+  }
+  function thLegend() {
+    const sw = (inner) => `<svg viewBox="-15 -15 30 30" width="24" height="24">${inner}</svg>`;
+    return `<div class="ivlegend">
+      <span>${sw('<circle r="8.5" fill="var(--muted)" stroke="var(--muted)" stroke-width="2"/>')}مستند یا معتبر</span>
+      <span>${sw('<circle r="8" fill="var(--panel)" stroke="var(--muted)" stroke-width="2.5"/>')}ادعا یا شایعه</span>
+      <span>${sw('<circle r="9" fill="var(--panel)" stroke="var(--muted)" stroke-width="2.2" stroke-dasharray="3 2"/><text y="4" text-anchor="middle" style="font-size:11px;font-weight:900;fill:var(--muted)">؟</text>')}معما</span>
+      <span>${sw('<rect x="-7" y="-7" width="14" height="14" rx="2" fill="var(--panel)" stroke="var(--danger)" stroke-width="2.5"/><path d="M-4 -4L4 4M4 -4L-4 4" stroke="var(--danger)" stroke-width="2.2"/>')}گسست یا کوشش برای بریدن</span>
+      <span>${sw('<line x1="-13" x2="13" y1="0" y2="0" stroke="var(--muted)" stroke-width="4"/>')}پیوند مستند</span>
+      <span>${sw('<line x1="-13" x2="13" y1="0" y2="0" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4"/>')}پیوند ضعیف</span>
+      <span>${sw('<line x1="-13" x2="13" y1="0" y2="0" stroke="var(--muted)" stroke-width="2" stroke-dasharray="1 4"/>')}ادامه تا امروز</span></div>`;
+  }
+  function threadCard(th, hi) {
+    const [kname] = TH_KIND[th.kind] || [th.kind];
+    const open = (r) => {
+      if (!r.open) return '';
+      const [k, id] = r.open;
+      if (k === 'interv') return `<button class="lnk sm" data-interv="${id}">${ic('hand')} رخداد</button>`;
+      if (k === 'mystery') return `<button class="lnk sm" data-mystery="${id}">${ic('question')} معما <span class="ms ms-${MY[id].status}">${MSTATUS[MY[id].status]}</span></button>`;
+      return '';
+    };
+    return `<article class="thcard" id="thc-${th.id}" style="--c:${thColor(th)}">
+      <header><button class="thtitle" data-thread="${th.id}">${esc(th.name)}</button><span class="thkind">${esc(kname)}</span><span class="thv thv-${th.verdict?.kind}">${TH_VERDICT[th.verdict?.kind] || ''}</span></header>
+      <p class="claim"><b>پرسش:</b> ${esc(th.question)}</p>
+      <p class="summary">${esc(th.summary)}</p>
+      <div class="thverdict"><b>آنچه داده تاکنون نشان می‌دهد:</b> ${esc(th.verdict?.t || '')}</div>
+      <ol class="thsteps">${th.steps.map((s, k) => `<li class="${s.k ? 'k-' + s.k : ''}${s._r.mystery ? ' k-claim' : ''}${k === hi ? ' hi' : ''}" data-thread="${th.id}" data-step="${k}">
+        <span class="yr">${fa(s.y)}</span>
+        <div><div class="sttext">${s.k === 'break' ? '<span class="sttag brk">گسست</span>' : ''}${s.k === 'claim' || s._r.mystery ? '<span class="sttag clm">ادعا</span>' : ''}${esc(s._r.text)}</div>
+          ${s.p.length ? `<div class="mpeople">${s.p.map(personBtn).join('')}</div>` : ''}
+          <div class="mmeta">${tierBadge(s._r.tier)}${srcList(s._r.src)}${open(s._r)}</div></div></li>`).join('')}</ol>
+    </article>`;
+  }
+  function renderThreads() {
+    const list = THREADS.filter(thVisible);
+    const items = behindItems();
+    const kinds = Object.entries(TH_KIND).map(([k, [n, c]]) => `<button class="tchip${st.thKind === k ? ' on' : ''}" data-act="th-kind" data-kind="${k}" style="--c:${c}">${n} (${fa(THREADS.filter((t) => t.kind === k).length)})</button>`).join('');
+    $('#stage').innerHTML = `
+      <div class="toolbar"><h2>${ic('diagram')} رشته‌های بلند: آنچه زیر رژیم‌ها ماند</h2><span class="hint">${fa(list.length)} رشته · ${fa(list.reduce((a, t) => a + t.steps.length, 0))} گام</span></div>
+      ${helpBox('رژیم‌ها عوض شدند؛ اینجا آنچه زیر آن‌ها ماند دنبال می‌شود: بنیادها (مانند تشیع دولتی صفوی)، شبکه‌ها و خاندان‌ها، دست قدرت‌های بیرونی و الگوهای رفتار قدرت. هر گام یک رکورد ثبت‌شده در داده است، با سطح اعتبار و منبع. پیوند پررنگ یعنی هر دو سر مستند یا معتبرند؛ نقطه‌چین یعنی ادعا، معما یا گسست. جدول «چه کسی پشت سر بود» فقط پیوندها و دخالت‌های ثبت‌شده را می‌شمارد؛ دوره‌ای که بیشتر پژوهش شده، پیوند بیشتری نشان می‌دهد. داوری درباره درستی باورهای دینی بیرون از توان سند است؛ اینجا فقط ادعاهای تاریخی سنجش‌پذیر (اجبار، نسب، واردات روحانیت، پول و فرمان بیگانه) آمده است.')}
+      <section class="ivsec"><h3>${ic('globe')} چه کسی پشت سر بود؟ قدرت‌های بیرونی در ۶۰۰ سال</h3>
+        <p class="muted sm">هر خانه ۲۵ سال است. رنگ پررنگ‌تر = پیوند و دخالت ثبت‌شده بیشتر. <b>●</b> = دست‌کم یک سند «مهار»: کارگزار یا دست‌نشانده مستند، کودتا، گماشتن، اشغال، دولت دست‌نشانده یا پرداخت پنهان. نشانگر را روی هر خانه نگه دارید تا نام‌ها و رخدادها بیاید. پیوند شخصی تاریخ ندارد و در سراسر دوره قدرت همان فرد شمرده می‌شود؛ مأموران خارجی حاضر در ایران فقط «حضور» شمرده می‌شوند، نه «مهار».</p>
+        ${behindMatrix(items)}
+        <h4 class="bhh">دوره به دوره: مهار در برابر همکاری</h4>
+        <div class="bhera">${behindByEra(items)}</div></section>
+      <section class="ivsec"><h3>${ic('gantt')} رشته‌ها روی یک خط زمان</h3>
+        <div class="types">${`<button class="tchip${!st.thKind ? ' on' : ''}" data-act="th-kind" data-kind="">همه (${fa(THREADS.length)})</button>`}${kinds}</div>
+        ${thLegend()}${threadLanes(list)}</section>
+      <section class="thcards">${list.map((th) => threadCard(th, st.sel && st.sel.kind === 'thread' && st.sel.id === th.id ? st.thStep : -1)).join('') || '<p class="empty">رشته‌ای پیدا نشد.</p>'}</section>`;
+  }
+  function threadDetail(th) {
+    return `<div class="d-head"><span class="kind">${ic('diagram')} رشته بلند</span>${closeBtn()}</div>${threadCard(th, st.thStep ?? -1)}
+      <p class="muted sm"><button class="lnk" data-view="threads">${ic('gantt')} دیدن همه رشته‌ها روی خط زمان</button></p>`;
+  }
+
   /* ——— ستون جزئیات با تاریخچه بازگشت ——— */
   function renderDetailNav() {
     const b = hist.back[hist.back.length - 1], f = hist.fwd[hist.fwd.length - 1];
@@ -1044,6 +1308,7 @@
     else if (sel.kind === 'mystery' && MY[sel.id]) d.innerHTML = `<div class="d-head"><span class="kind">${ic('question')} معما</span><button class="ibtn" data-act="unselect" title="بستن">${ic('xmark')}</button></div>${mysteryCard(MY[sel.id], true)}`;
     else if (sel.kind === 'source' && SRC[sel.id]) d.innerHTML = sourceDetail(SRC[sel.id]);
     else if (sel.kind === 'intervention' && IV[sel.id]) d.innerHTML = interventionDetail(IV[sel.id]);
+    else if (sel.kind === 'thread' && TH[sel.id]) d.innerHTML = threadDetail(TH[sel.id]);
     else d.innerHTML = globalDetail();
     renderDetailNav();
   }
@@ -1086,6 +1351,7 @@
       ${p.masks.length ? `<h4>${ic('masks')} تغییر نقاب</h4><ol class="masks">${p.masks.map((m) => `<li class="${tierOK(m.tier) ? '' : 'faded'}"><div class="mfrom">${esc(m.from)}</div><div class="marrow">${m.year ? fa(m.year) + ' ' : ''}⟵</div><div class="mto">${esc(m.to)}</div>${m.note ? `<p class="muted sm">${esc(m.note)}</p>` : ''}<div class="mmeta">${tierBadge(m.tier)}${srcList(m.src)}</div></li>`).join('')}</ol>` : ''}
       ${p.roles.length ? `<h4>${ic('badge')} نقش‌ها</h4><ul class="plain roles">${p.roles.map((r) => `<li>${esc(r.t)}${r.from || r.to ? ` <span class="yr">${r.from ? fa(r.from) : '؟'}–${r.to ? fa(r.to) : '؟'}</span>` : ''}</li>`).join('')}</ul>` : ''}
       ${p.ties.length ? `<h4>${ic('globe')} ریشه‌ها و پیوندهای بیرونی</h4><ul class="plain ties">${p.ties.map((t) => `<li class="${tierOK(t.tier) ? '' : 'faded'}">${powerChip(t.power)}<span class="tkind${t.kind === 'enemy' ? ' enemy' : ''}">${TIE_KINDS[t.kind] || t.kind}</span>${tierBadge(t.tier)}${t.note ? `<div class="sm">${esc(t.note)}</div>` : ''}${srcList(t.src)}</li>`).join('')}</ul>` : ''}
+      ${(TH_OF[p.id] || []).length ? `<h4>${ic('diagram')} در رشته‌های بلند</h4><div class="d-list">${TH_OF[p.id].map((th) => { const k = th.steps.findIndex((s) => s.p.includes(p.id)); return `<button class="row" data-thread="${th.id}" data-step="${k}"><i class="dot sm" style="background:${thColor(th)}"></i><span>${esc(th.name)}</span><span class="sm muted">${fa(th.steps[k].y)}</span></button>`; }).join('')}</div>` : ''}
       ${(IV_OF[p.id] || []).length ? `<h4>${ic('hand')} دخالت‌های خارجی مرتبط</h4><div class="d-list">${IV_OF[p.id].map((v) => `<button class="row${tierOK(v.tier) ? '' : ' faded'}" data-interv="${v.id}">${v.powers.map((w) => `<i class="dot sm" style="background:${PW[w]?.color}"></i>`).join('')}<span>${fa(v.year)} · ${esc(v.title)}</span><span class="sm ${v.placed.includes(p.id) ? 'ivtag-put' : v.removed.includes(p.id) ? 'ivtag-out' : 'muted'}">${v.placed.includes(p.id) ? 'به قدرت رسید' : v.removed.includes(p.id) ? 'برکنار شد' : 'درگیر'}</span>${tierBadge(v.tier)}</button>`).join('')}</div>` : ''}
       ${rel.length ? `<h4>${ic('link')} پیوندها با دیگران</h4>${Object.keys(LINKS).filter((k) => byType[k]).map((k) => `<div class="relgroup"><div class="reltype lk-${k}"><i></i>${LINKS[k].name}</div><ul class="plain">${byType[k].map((x) => `<li><span class="rl">${esc(x.label)}:</span> ${personBtn(x.other)} ${P[x.other] ? relChip(P[x.other]) : ''} ${tierBadge(x.l.tier)}${x.l.note ? `<span class="sm muted"> — ${esc(x.l.note)}</span>` : ''}${srcList(x.l.src)}</li>`).join('')}</ul></div>`).join('')}` : ''}
       ${myst.length ? `<h4>${ic('question')} معماهای مرتبط</h4><div class="d-list">${myst.map((m) => `<button class="row" data-mystery="${m.id}">${esc(m.title)}<span class="ms ms-${m.status}">${MSTATUS[m.status]}</span></button>`).join('')}</div>` : ''}
@@ -1205,7 +1471,7 @@
     const full = st.full && FULLABLE.has(st.view);
     $('#stage').classList.toggle('full', full);
     document.body.classList.toggle('has-full', full);
-    ({ overview: renderOverview, hier: renderHier, tree: renderTree, trail: renderTrail, mysteries: renderMysteries, sources: renderSources, influence: renderInfluence })[st.view]();
+    ({ overview: renderOverview, hier: renderHier, tree: renderTree, trail: renderTrail, mysteries: renderMysteries, sources: renderSources, influence: renderInfluence, threads: renderThreads })[st.view]();
   }
   function renderAll() { applyPanels(); renderPickers(); renderNav(); renderStage(); renderDetail(); renderFoot(); }
   function syncHash() {
@@ -1316,7 +1582,7 @@
     const zt = ev.target.closest('[data-zoom]');
     if (zt) openPortrait(zt.dataset.zoom);
     if (st.pk && !ev.target.closest('.picker')) { st.pk = null; renderPickers(); }
-    const t = ev.target.closest('[data-act],[data-view],[data-fold],[data-hfold],[data-hdeep],[data-tdeep],[data-power],[data-rel],[data-type],[data-mstatus],[data-tag],[data-person],[data-era],[data-group],[data-mystery],[data-source],[data-interv]');
+    const t = ev.target.closest('[data-act],[data-view],[data-fold],[data-hfold],[data-hdeep],[data-tdeep],[data-power],[data-rel],[data-type],[data-mstatus],[data-tag],[data-person],[data-era],[data-group],[data-mystery],[data-source],[data-interv],[data-thread]');
     if (!t) return;
     const d = t.dataset;
     if (t.closest('summary') && t.tagName !== 'SUMMARY' && (d.act || d.person || d.tdeep)) ev.preventDefault();
@@ -1338,6 +1604,9 @@
       else if (a === 'h-from-sel') { if (st.sel && st.sel.kind === 'person') { st.hRoot = st.sel.id; chartView = null; setView('hier'); } }
       else if (a === 'tree-mode-power' || a === 'tree-mode-line') { st.treeMode = a === 'tree-mode-line' ? 'line' : 'power'; store.set('treeMode', st.treeMode); renderStage(); if (st.sel && st.sel.kind === 'person') treeReveal(st.sel.id); }
       else if (a === 'iv-range') { st.ivRange = d.range; store.set('ivRange', st.ivRange); renderStage(); }
+      else if (a === 'iv-zoom') { st.ivZoom = zoomStep(st.ivZoom, +d.z); store.set('ivZoom', st.ivZoom); renderStage(); }
+      else if (a === 'th-zoom') { st.thZoom = zoomStep(st.thZoom, +d.z); store.set('thZoom', st.thZoom); renderStage(); }
+      else if (a === 'th-kind') { st.thKind = d.kind || ''; renderStage(); }
       else if (a === 'tree-expand') setAllTreeDetails(true);
       else if (a === 'tree-collapse') setAllTreeDetails(false);
       else if (a === 'masks') { st.masks = !st.masks; refilter(); }
@@ -1401,6 +1670,14 @@
       select('intervention', d.interv);
       if (st.view === 'influence') document.querySelectorAll('.ivm').forEach((g) => g.classList.toggle('sel', g.dataset.interv === d.interv));
     }
+    if (d.thread) {
+      st.thStep = d.step != null ? +d.step : undefined;
+      select('thread', d.thread);
+      if (st.view === 'threads') {
+        document.querySelectorAll('.thm').forEach((g) => g.classList.toggle('sel', g.dataset.thread === d.thread && +g.dataset.step === st.thStep));
+        document.querySelectorAll('.thsteps li').forEach((li) => li.classList.toggle('hi', li.dataset.thread === d.thread && +li.dataset.step === st.thStep));
+      }
+    }
   });
   document.addEventListener('toggle', (ev) => {
     const el = ev.target;
@@ -1436,6 +1713,26 @@
     } else if (ev.altKey && ev.key === 'ArrowRight') goHistory('back');
     else if (ev.altKey && ev.key === 'ArrowLeft') goHistory('fwd');
   });
+  /* کارت شناور فوری برای نشانه‌های data-tip (به جای title کند مرورگر) */
+  const vtip = document.createElement('div');
+  vtip.className = 'vtip'; vtip.hidden = true; vtip.setAttribute('role', 'tooltip');
+  document.body.appendChild(vtip);
+  const placeTip = (ev) => {
+    const r = vtip.getBoundingClientRect(), pad = 14;
+    let x = ev.clientX - r.width - pad, y = ev.clientY + pad;
+    if (x < 8) x = ev.clientX + pad;
+    if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - pad;
+    vtip.style.left = `${Math.max(8, x)}px`; vtip.style.top = `${Math.max(8, y)}px`;
+  };
+  document.addEventListener('mouseover', (ev) => {
+    const t = ev.target.closest && ev.target.closest('[data-tip]');
+    if (!t) { vtip.hidden = true; return; }
+    vtip.textContent = t.getAttribute('data-tip');
+    vtip.hidden = false; placeTip(ev);
+  });
+  document.addEventListener('mousemove', (ev) => { if (!vtip.hidden) placeTip(ev); });
+  document.addEventListener('scroll', () => { vtip.hidden = true; }, true);
+
   document.addEventListener('wheel', (ev) => {
     if (!ev.ctrlKey || !ev.target.closest('#chartwrap')) return;
     ev.preventDefault();

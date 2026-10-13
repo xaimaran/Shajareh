@@ -131,6 +131,16 @@ SH.intervention(
   { id: 'iv-1404-war', year: 1404, end: 1405, powers: ['usa', 'israel'], kind: 'war', title: 'جنگ ۱۴۰۴ و کشته شدن رهبر',
     removed: ['ali-khamenei'], people: ['ali-larijani', 'mojtaba-khamenei'], tier: 1,
     note: 'برکناری با کشتن، نه با گماشتن جانشین؛ جانشین را مجلس خبرگان برگزید (نک. معمای جانشینی).', src: ['wiki-2026', 'aljazeera-2026'], mystery: 'm-mojtaba-succession' },
+  { id: 'iv-1405-veto-hormuz', year: 1405, powers: ['russia', 'china'], kind: 'protect', title: 'وتوی روسیه و چین بر پیش‌نویس محکومیت ایران و بازگشایی هرمز (فروردین ۱۴۰۵)',
+    people: ['mojtaba-khamenei', 'araghchi'], tier: 1, note: 'نخستین وتوی مشترک به سود ایران در این جنگ؛ چین گفت پیش‌نویس بحرین «ریشه‌های درگیری» را نادیده می‌گیرد.', src: ['war-1405-powers'] },
+  { id: 'iv-1405-ceasefire', year: 1405, powers: ['china'], kind: 'mediation', title: 'فشار چین بر ایران برای پذیرش آتش‌بس دوهفته‌ای',
+    people: ['mojtaba-khamenei'], tier: 3, note: 'گزارش کمیسیون کنگره آمریکا؛ پکن نه تأیید کرد و نه تکذیب. اگر درست باشد، نشانه اهرم چین بر تصمیم جنگ ایران است.', src: ['war-1405-powers'], mystery: 'm-dominant-power' },
+  { id: 'iv-1405-pakistan', year: 1405, powers: ['pakistan', 'china'], kind: 'mediation', title: 'میانجی‌گری پاکستان و یادداشت تفاهم مرحله نخست مذاکره ایران و آمریکا (تیر ۱۴۰۵)',
+    people: ['pezeshkian', 'araghchi'], tier: 2, note: 'متن یادداشت در ۳ تیر ۱۴۰۵ نهایی شد؛ چین آشکارا از میانجی‌گری پاکستان پشتیبانی کرد. یادداشت در تیر فروریخت (نک. یادداشت دوره).', src: ['war-1405-powers'] },
+  { id: 'iv-1405-veto-monitoring', year: 1405, powers: ['russia', 'china'], kind: 'protect', title: 'وتوی تمدید نظارت سازمان ملل بر تحریم‌های ایران (شهریور ۱۴۰۵)',
+    people: ['araghchi'], tier: 1, note: '۱۱ موافق؛ پاکستان و سومالی ممتنع. پس از ناکامی پیش‌نویس تعویق اسنپ‌بک (۱۴۰۴)، این بار روسیه و چین با وتو جلوی نظارت را گرفتند.', src: ['war-1405-powers'] },
+  { id: 'iv-1405-ru-drones', year: 1405, powers: ['russia'], kind: 'arms', title: 'ادعای ارسال پهپادهای ارتقایافته روسی به ایران',
+    people: [], tier: 3, note: 'فقط از مقام‌های آمریکایی و اروپایی؛ انتقال گسترده سلاح در مرحله فعال جنگ تأیید نشد.', src: ['war-1405-powers'] },
   { id: 'iv-1404-war-restraint', year: 1404, powers: ['russia', 'china'], kind: 'restraint', title: 'رأی ممتنع روسیه و چین در شورای امنیت (اسفند ۱۴۰۴)',
     people: [], tier: 2, note: 'وتو نکردند. گزارش‌های آمریکایی از کمک اطلاعات ماهواره‌ای روسیه سخن می‌گویند (سطح ۳).', src: ['wiki-2026'] }
 );
