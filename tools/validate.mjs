@@ -198,7 +198,34 @@ const PR = ids(S.prisons || [], 'prisons');
   if (!j.note) warn.push(`یادداشت ندارد: ${w}`);
 });
 
-const unused = S.sources.filter((s) => !JSON.stringify([S.people, S.links, S.mysteries, S.dynasties || [], S.interventions || [], S.threads || [], S.jails || []]).includes(`"${s.id}"`)).map((s) => s.id);
+// چرا آزاد شدند (SH.release): دست‌اندرکاران گروه یا قدرت، چگونگی، اعتبار؛ و ارجاع حبس‌ها به آن‌ها
+const REL_HOW = ['decision', 'amnesty', 'pressure', 'intercession', 'campaign', 'deal', 'collapse', 'escape', 'covert'];
+const REL = ids(S.releases || [], 'releases');
+(S.releases || []).forEach((r) => {
+  const w = `آزادی ${r.id}`;
+  if (!REL_HOW.includes(r.how)) problems.push(`how نامعتبر «${r.how}» در ${w}`);
+  if (!Number.isInteger(r.year)) problems.push(`سال ندارد: ${w}`);
+  yearOk(r.year, w);
+  (r.by || []).forEach((b) => { if (!G.has(b) && !PW.has(b)) problems.push(`دست‌اندرکار ناشناخته «${b}» در ${w}`); });
+  if (!r.title) problems.push(`عنوان ندارد: ${w}`);
+  if (r.mystery && !MY.has(r.mystery)) problems.push(`معمای ناشناخته «${r.mystery}» در ${w}`);
+  if (r.how === 'covert' && !r.mystery) problems.push(`ادعای دست پنهان بدون معما: ${w}`);
+  tierOk(r.tier, w); srcOk(r.src, w);
+});
+(S.jails || []).forEach((j, i) => (j.freed || []).forEach((id) => { if (!REL.has(id)) problems.push(`آزادی ناشناخته «${id}» در حبس ${i} (${j.who})`); }));
+const usedRel = new Set((S.jails || []).flatMap((j) => j.freed || []));
+(S.releases || []).forEach((r) => { if (!usedRel.has(r.id)) warn.push(`آزادی بی‌ارجاع (هیچ حبسی به آن اشاره نمی‌کند): ${r.id}`); });
+
+// دانشنامه‌ها و سایت‌های پرخواننده نشانی‌اند نه سند: ادعایی که فقط بر آن‌ها تکیه دارد حداکثر سطح ۳ است
+const REFK = new Set(S.sources.filter((s) => s.kind === 'reference').map((s) => s.id));
+const onlyRef = (src) => (src || []).length && src.every((s) => REFK.has(s));
+let refOnly = 0;
+S.people.forEach((p) => [...(p.ties || []), ...(p.masks || [])].forEach((x) => { if (onlyRef(x.src) && x.tier < 3) refOnly++; }));
+[...S.links, ...(S.interventions || []), ...(S.jails || []), ...(S.releases || [])].forEach((x) => { if (onlyRef(x.src) && x.tier < 3) refOnly++; });
+S.mysteries.forEach((m) => [...(m.for || []), ...(m.against || [])].forEach((x) => { if (onlyRef(x.src) && x.tier < 3) refOnly++; }));
+if (refOnly) warn.push(`${refOnly} ادعای سطح ۱ یا ۲ فقط بر دانشنامه یا گردآوری جست‌وجو تکیه دارد؛ با سند دست اول تطبیق یا به سطح ۳ کاهش یابد`);
+
+const unused = S.sources.filter((s) => !JSON.stringify([S.people, S.links, S.mysteries, S.dynasties || [], S.interventions || [], S.threads || [], S.jails || [], S.releases || []]).includes(`"${s.id}"`)).map((s) => s.id);
 if (unused.length) warn.push(`منابع بی‌ارجاع: ${unused.join('، ')}`);
 
 console.log(`افراد ${S.people.length} | پیوندها ${S.links.length} | گروه‌ها ${S.groups.length} | معماها ${S.mysteries.length} | منابع ${S.sources.length} (تطبیق‌شده ${S.sources.filter((s) => s.checked).length})`);

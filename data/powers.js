@@ -35,5 +35,8 @@ SH.power(
   { id: 'pakistan', name: 'پاکستان', color: '#01611f' },
   { id: 'libya', name: 'لیبی', color: '#4a7a2a' },
   { id: 'lebanon-state', name: 'دولت لبنان', color: '#7d5a8c' },
-  { id: 'oman', name: 'عمان', color: '#a6192e' }
+  { id: 'oman', name: 'عمان', color: '#a6192e' },
+  /* سازمان‌های بیرونی که در زندان‌ها و آزادی‌ها دست داشتند */
+  { id: 'icrc', name: 'صلیب سرخ جهانی', color: '#c62828' },
+  { id: 'amnesty', name: 'عفو بین‌الملل', color: '#e0a800' }
 );
