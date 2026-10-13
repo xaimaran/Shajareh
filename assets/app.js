@@ -934,6 +934,23 @@
       </div>`;
   }
   const zoomStep = (cur, d) => (d === 0 ? 1 : ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(cur) + d))] ?? 1);
+  // جای اسکرول خط زمان: جعبه اسکرول dir=ltr است و سال‌های کهن‌تر در راست، کنار ستون نام‌ها.
+  // پس از بزرگ‌نمایی یا تغییر پهنا، همان مرکز دیدنی می‌ماند؛ در نخستین نمایش، آغاز خط زمان کنار نام‌ها دیده می‌شود.
+  const SWIM_VIEWS = new Set(['influence', 'threads', 'prisons']);
+  let swimPending = null;
+  function swimState() {
+    const s = $('#stage .swim-scroll');
+    return s && s.scrollWidth > s.clientWidth ? { frac: (s.scrollLeft + s.clientWidth / 2) / s.scrollWidth } : null;
+  }
+  function swimApply(state) {
+    document.querySelectorAll('#stage .swim-scroll').forEach((s) => {
+      const max = s.scrollWidth - s.clientWidth;
+      if (max <= 0) return;
+      s.style.scrollBehavior = 'auto';
+      s.scrollLeft = state ? Math.max(0, Math.min(max, state.frac * s.scrollWidth - s.clientWidth / 2)) : max;
+      s.style.scrollBehavior = '';
+    });
+  }
 
   function ivShape(v, cx, cy, c) {
     const cat = IV_KIND[v.kind]?.[1];
@@ -1708,7 +1725,24 @@
     $('#stage').classList.toggle('full', full);
     document.body.classList.toggle('has-full', full);
     ({ overview: renderOverview, hier: renderHier, tree: renderTree, trail: renderTrail, mysteries: renderMysteries, sources: renderSources, influence: renderInfluence, threads: renderThreads, prisons: renderPrisons })[st.view]();
+    if (SWIM_VIEWS.has(st.view)) { swimApply(swimPending); swimPending = null; }
   }
+  // پهنای خط زمان هنگام نمایش از پهنای صحنه گرفته می‌شود؛ با باز و بسته شدن ستون‌ها یا کشیدن جداکننده دوباره ساخته می‌شود
+  let stageW = 0, stageT = null;
+  if (window.ResizeObserver) new ResizeObserver(([e]) => {
+    const w = Math.round(e.contentRect.width);
+    if (Math.abs(w - stageW) < 16) return;
+    const first = !stageW;
+    stageW = w;
+    if (first || !SWIM_VIEWS.has(st.view)) return;
+    clearTimeout(stageT);
+    stageT = setTimeout(() => {
+      const stg = $('#stage'), top = stg.scrollTop;
+      swimPending = swimState();
+      renderStage();
+      stg.style.scrollBehavior = 'auto'; stg.scrollTop = top; stg.style.scrollBehavior = '';
+    }, 120);
+  }).observe($('#stage'));
   function renderAll() { applyPanels(); renderPickers(); renderNav(); renderStage(); renderDetail(); renderFoot(); }
   function syncHash() {
     const h = new URLSearchParams();
@@ -1840,11 +1874,11 @@
       else if (a === 'h-from-sel') { if (st.sel && st.sel.kind === 'person') { st.hRoot = st.sel.id; chartView = null; setView('hier'); } }
       else if (a === 'tree-mode-power' || a === 'tree-mode-line') { st.treeMode = a === 'tree-mode-line' ? 'line' : 'power'; store.set('treeMode', st.treeMode); renderStage(); if (st.sel && st.sel.kind === 'person') treeReveal(st.sel.id); }
       else if (a === 'iv-range') { st.ivRange = d.range; store.set('ivRange', st.ivRange); renderStage(); }
-      else if (a === 'iv-zoom') { st.ivZoom = zoomStep(st.ivZoom, +d.z); store.set('ivZoom', st.ivZoom); renderStage(); }
-      else if (a === 'th-zoom') { st.thZoom = zoomStep(st.thZoom, +d.z); store.set('thZoom', st.thZoom); renderStage(); }
+      else if (a === 'iv-zoom') { swimPending = swimState(); st.ivZoom = zoomStep(st.ivZoom, +d.z); store.set('ivZoom', st.ivZoom); renderStage(); }
+      else if (a === 'th-zoom') { swimPending = swimState(); st.thZoom = zoomStep(st.thZoom, +d.z); store.set('thZoom', st.thZoom); renderStage(); }
       else if (a === 'th-kind') { st.thKind = d.kind || ''; renderStage(); }
       else if (a === 'j-range') { st.jRange = d.range; store.set('jRange', st.jRange); renderStage(); }
-      else if (a === 'j-zoom') { st.jZoom = zoomStep(st.jZoom, +d.z); store.set('jZoom', st.jZoom); renderStage(); }
+      else if (a === 'j-zoom') { swimPending = swimState(); st.jZoom = zoomStep(st.jZoom, +d.z); store.set('jZoom', st.jZoom); renderStage(); }
       else if (a === 'j-sig') { st.jSig = d.k || ''; const y = $('#stage').scrollTop; renderStage(); $('#stage').scrollTop = y; }
       else if (a === 'tree-expand') setAllTreeDetails(true);
       else if (a === 'tree-collapse') setAllTreeDetails(false);
