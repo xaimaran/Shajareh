@@ -62,7 +62,7 @@ Every tie, mask, link and mystery evidence carries `tier` and `src`.
 - **Encyclopedias and popular sites are pointers, not evidence.** Wikipedia, Britannica, Iranica, WikiShia and other widely read sites shape what the public is told. Use them only to find the primary source (document, memoir, court record, contemporary press) and cite that.
   - A fact resting only on them is at most tier 3.
   - They are never used alone to reject or weaken a claim, rumor or mystery.
-  - A user's report of a witness (e.g. a video they watched) is recorded as tier 4 with `where` saying the original is not yet found, until it is located.
+  - A witness's own statement in video (often Persian, on YouTube or Rumble, with no transcript, unreachable from this environment) counts as a source once the user names the channel or video. Record it as `kind: 'video'`, with the URL in `where` (channel, video, minute as far as known). Give it the tier the witness deserves (one first-person witness = 3) and keep `checked: false` until the passage is transcribed. Only a report with no locatable original stays tier 4.
   - The validator counts tier 1–2 claims whose sources are all `kind: 'reference'`. Bring that number down by finding primary sources, not by deleting claims.
 - `checked: false` on a source means claims citing it were written from prior knowledge and not yet compared with the text. Set `checked: true` only after reading the actual text (or a scan/translation of it) and fixing any claim it does not support. Say plainly in the session which claims were checked.
 - Living people: only tier 1–2 for ties and masks; tier 3–4 allowed only inside a mystery with explicit counter-evidence and `next` steps. No speculation in `summary`.
